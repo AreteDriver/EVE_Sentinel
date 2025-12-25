@@ -32,8 +32,8 @@ Analyze ESI data from alliance auth systems to produce risk assessments for recr
 ### Installation
 
 ```bash
-git clone https://github.com/AreteDriver/EVE-Sentinel.git
-cd EVE-Sentinel
+git clone https://github.com/AreteDriver/EVE_Sentinel.git
+cd EVE_Sentinel
 
 # Create virtual environment
 python -m venv .venv
@@ -114,7 +114,7 @@ API docs: http://localhost:8000/docs
 ## Project Structure
 
 ```
-EVE-Sentinel/
+EVE_Sentinel/
 ├── backend/
 │   ├── analyzers/          # Analysis modules
 │   │   ├── killboard.py    # zKillboard analysis
@@ -259,4 +259,4 @@ This tool is designed for legitimate alliance security purposes. Always respect 
 
 ---
 
-**Built for EVE Online alliance security** | [Report Issues](https://github.com/AreteDriver/EVE-Sentinel/issues)
+**Built for EVE Online alliance security** | [Report Issues](https://github.com/AreteDriver/EVE_Sentinel/issues)
