@@ -1,0 +1,60 @@
+{#
+   Pagination component
+   Usage: {% include "components/pagination.html" with context %}
+   Required context: current_page, total_pages, base_url (optional)
+#}
+{% if total_pages > 1 %}
+<nav aria-label="Page navigation">
+    <ul class="pagination pagination-sentinel justify-content-center mb-0">
+        {# Previous #}
+        <li class="page-item {% if current_page <= 1 %}disabled{% endif %}">
+            {% if current_page > 1 %}
+            <a class="page-link" href="?page={{ current_page - 1 }}{% if risk_filter %}&risk={{ risk_filter }}{% endif %}">
+                <i class="bi bi-chevron-left"></i>
+            </a>
+            {% else %}
+            <span class="page-link"><i class="bi bi-chevron-left"></i></span>
+            {% endif %}
+        </li>
+
+        {# Page numbers #}
+        {% set start_page = [1, current_page - 2]|max %}
+        {% set end_page = [total_pages, current_page + 2]|min %}
+
+        {% if start_page > 1 %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% if risk_filter %}&risk={{ risk_filter }}{% endif %}">1</a>
+        </li>
+        {% if start_page > 2 %}
+        <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+        {% endif %}
+
+        {% for page in range(start_page, end_page + 1) %}
+        <li class="page-item {% if page == current_page %}active{% endif %}">
+            <a class="page-link" href="?page={{ page }}{% if risk_filter %}&risk={{ risk_filter }}{% endif %}">{{ page }}</a>
+        </li>
+        {% endfor %}
+
+        {% if end_page < total_pages %}
+        {% if end_page < total_pages - 1 %}
+        <li class="page-item disabled"><span class="page-link">...</span></li>
+        {% endif %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ total_pages }}{% if risk_filter %}&risk={{ risk_filter }}{% endif %}">{{ total_pages }}</a>
+        </li>
+        {% endif %}
+
+        {# Next #}
+        <li class="page-item {% if current_page >= total_pages %}disabled{% endif %}">
+            {% if current_page < total_pages %}
+            <a class="page-link" href="?page={{ current_page + 1 }}{% if risk_filter %}&risk={{ risk_filter }}{% endif %}">
+                <i class="bi bi-chevron-right"></i>
+            </a>
+            {% else %}
+            <span class="page-link"><i class="bi bi-chevron-right"></i></span>
+            {% endif %}
+        </li>
+    </ul>
+</nav>
+{% endif %}

@@ -1,0 +1,23 @@
+{#
+   Risk badge component
+   Usage: {% include "components/risk_badge.html" with context %}
+   Required context: risk (OverallRisk enum or string)
+#}
+{% set risk_value = risk.value if risk.value is defined else risk %}
+{% if risk_value == 'RED' %}
+<span class="risk-badge risk-badge-red">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>High Risk
+</span>
+{% elif risk_value == 'YELLOW' %}
+<span class="risk-badge risk-badge-yellow">
+    <i class="bi bi-exclamation-circle-fill me-1"></i>Moderate
+</span>
+{% elif risk_value == 'GREEN' %}
+<span class="risk-badge risk-badge-green">
+    <i class="bi bi-check-circle-fill me-1"></i>Low Risk
+</span>
+{% else %}
+<span class="risk-badge risk-badge-unknown">
+    <i class="bi bi-question-circle-fill me-1"></i>Unknown
+</span>
+{% endif %}

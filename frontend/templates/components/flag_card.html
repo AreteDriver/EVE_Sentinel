@@ -1,0 +1,18 @@
+{#
+   Flag card component
+   Usage: {% include "components/flag_card.html" with context %}
+   Required context: flag (RiskFlag object)
+#}
+{% set severity = flag.severity.value if flag.severity.value is defined else flag.severity %}
+<div class="flag-card flag-card-{{ severity|lower }}">
+    <div class="flag-code">{{ flag.category.value if flag.category.value is defined else flag.category }} / {{ flag.code }}</div>
+    <div class="flag-reason">{{ flag.reason }}</div>
+    {% if flag.confidence and flag.confidence < 1.0 %}
+    <div class="mt-2">
+        <small class="text-muted">Confidence: {{ (flag.confidence * 100)|int }}%</small>
+        <div class="confidence-bar mt-1" style="width: 100px;">
+            <div class="confidence-bar-fill" style="width: {{ (flag.confidence * 100)|int }}%;"></div>
+        </div>
+    </div>
+    {% endif %}
+</div>

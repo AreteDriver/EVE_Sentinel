@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}{{ character_name }} - History - EVE Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb mb-2">
+            <li class="breadcrumb-item"><a href="/reports" class="character-link">Reports</a></li>
+            <li class="breadcrumb-item active">{{ character_name }}</li>
+        </ol>
+    </nav>
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <h1><i class="bi bi-person-circle me-2"></i>{{ character_name }}</h1>
+            <p class="text-muted mb-0">
+                Character ID: {{ character_id }} |
+                {{ reports|length }} analysis{% if reports|length != 1 %}es{% endif %} on record
+            </p>
+        </div>
+        <div>
+            <form hx-post="/partials/analyze"
+                  hx-target="#reanalyze-result"
+                  hx-swap="innerHTML">
+                <input type="hidden" name="character_input" value="{{ character_id }}">
+                <button type="submit" class="btn btn-sentinel">
+                    <span class="htmx-indicator spinner-sentinel me-1"></span>
+                    <i class="bi bi-arrow-clockwise me-1"></i>Re-analyze
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Re-analyze result area -->
+<div id="reanalyze-result" class="mb-4"></div>
+
+<!-- Latest Report Summary -->
+{% if reports %}
+{% set latest = reports[0] %}
+<div class="card card-sentinel mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-star me-2"></i>Latest Analysis</span>
+        {% set risk = latest.overall_risk %}
+        {% include "components/risk_badge.html" %}
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-3 text-center mb-3 mb-md-0">
+                <div class="stat-value" style="font-size: 2rem; color: var(--eve-accent);">
+                    {{ (latest.confidence * 100)|int }}%
+                </div>
+                <div class="stat-label">Confidence</div>
+            </div>
+            <div class="col-md-3 text-center mb-3 mb-md-0">
+                <div class="stat-value text-danger" style="font-size: 2rem;">{{ latest.red_flag_count }}</div>
+                <div class="stat-label">Red Flags</div>
+            </div>
+            <div class="col-md-3 text-center mb-3 mb-md-0">
+                <div class="stat-value text-warning" style="font-size: 2rem;">{{ latest.yellow_flag_count }}</div>
+                <div class="stat-label">Yellow Flags</div>
+            </div>
+            <div class="col-md-3 text-center">
+                <div class="stat-value text-success" style="font-size: 2rem;">{{ latest.green_flag_count }}</div>
+                <div class="stat-label">Green Flags</div>
+            </div>
+        </div>
+        <hr style="border-color: var(--eve-border);">
+        <div class="d-flex justify-content-between align-items-center">
+            <small class="text-muted">
+                Analyzed: {{ latest.created_at.strftime('%Y-%m-%d %H:%M UTC') }}
+            </small>
+            <a href="/reports/{{ latest.report_id }}" class="btn btn-sm btn-outline-sentinel">
+                <i class="bi bi-eye me-1"></i>View Full Report
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Analysis History Timeline -->
+<div class="card card-sentinel">
+    <div class="card-header">
+        <i class="bi bi-clock-history me-2"></i>Analysis History
+    </div>
+    <div class="card-body">
+        {% if reports %}
+        <div class="timeline">
+            {% for report in reports %}
+            <div class="timeline-item risk-{{ report.overall_risk.value|lower }}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <div class="mb-1">
+                            {% set risk = report.overall_risk %}
+                            {% include "components/risk_badge.html" %}
+                            <span class="ms-2 text-muted">
+                                {{ report.created_at.strftime('%Y-%m-%d %H:%M') }}
+                            </span>
+                        </div>
+                        <div class="d-flex gap-3 mt-2">
+                            {% if report.red_flag_count > 0 %}
+                            <span class="text-danger">
+                                <i class="bi bi-exclamation-triangle-fill"></i> {{ report.red_flag_count }}
+                            </span>
+                            {% endif %}
+                            {% if report.yellow_flag_count > 0 %}
+                            <span class="text-warning">
+                                <i class="bi bi-exclamation-circle-fill"></i> {{ report.yellow_flag_count }}
+                            </span>
+                            {% endif %}
+                            {% if report.green_flag_count > 0 %}
+                            <span class="text-success">
+                                <i class="bi bi-check-circle-fill"></i> {{ report.green_flag_count }}
+                            </span>
+                            {% endif %}
+                            <span class="text-muted">
+                                <i class="bi bi-speedometer"></i> {{ (report.confidence * 100)|int }}%
+                            </span>
+                        </div>
+                    </div>
+                    <a href="/reports/{{ report.report_id }}" class="btn btn-sm btn-outline-sentinel">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-clock"></i>
+            <p class="mb-0">No analysis history</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Back Link -->
+<div class="mt-4">
+    <a href="/reports" class="btn btn-outline-sentinel">
+        <i class="bi bi-arrow-left me-1"></i>Back to Reports
+    </a>
+</div>
+{% endblock %}

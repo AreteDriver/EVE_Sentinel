@@ -2,14 +2,17 @@
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from backend.api.analyze import router as analyze_router
 from backend.api.reports import router as reports_router
 from backend.api.webhooks import router as webhooks_router
 from backend.database import close_db, init_db
+from frontend import router as frontend_router
 
 
 @asynccontextmanager
@@ -62,32 +65,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Include routers
+# Mount static files
+STATIC_DIR = Path(__file__).parent.parent / "frontend" / "static"
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+# Include API routers
 app.include_router(analyze_router)
 app.include_router(reports_router)
 app.include_router(webhooks_router)
 
-
-@app.get("/")
-async def root() -> dict:
-    """Root endpoint - API info."""
-    return {
-        "name": "EVE Sentinel",
-        "version": "0.1.0",
-        "description": "Alliance Intel & Recruitment Analysis Tool",
-        "docs": "/docs",
-        "endpoints": {
-            "quick_check": "/api/v1/quick-check/{character_id}",
-            "full_analysis": "/api/v1/analyze/{character_id}",
-            "batch_analysis": "/api/v1/analyze/batch",
-            "search_and_analyze": "/api/v1/analyze/by-name/{character_name}",
-            "list_reports": "/api/v1/reports",
-            "get_report": "/api/v1/reports/{report_id}",
-            "character_reports": "/api/v1/reports/character/{character_id}",
-            "webhook_config": "/api/v1/webhooks/config",
-            "webhook_test": "/api/v1/webhooks/test",
-        },
-    }
+# Include frontend router (must be last to avoid path conflicts)
+app.include_router(frontend_router)
 
 
 @app.get("/health")

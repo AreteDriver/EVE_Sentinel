@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}New Analysis - EVE Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-person-plus me-2"></i>New Analysis</h1>
+    <p class="text-muted mb-0">Analyze a character for recruitment screening</p>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-search me-2"></i>Character Lookup
+            </div>
+            <div class="card-body">
+                <form id="analyze-form"
+                      hx-post="/partials/analyze"
+                      hx-target="#analysis-result"
+                      hx-swap="innerHTML"
+                      hx-indicator="#analyze-spinner">
+
+                    <div class="mb-4">
+                        <label for="character_input" class="form-label">Character Name or ID</label>
+                        <input type="text"
+                               id="character_input"
+                               name="character_input"
+                               class="form-control form-control-sentinel form-control-lg"
+                               placeholder="Enter character name or EVE ID..."
+                               required
+                               autocomplete="off">
+                        <div class="form-text text-muted mt-2">
+                            You can enter either the exact character name or their EVE Online character ID.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-sentinel btn-lg w-100">
+                        <span id="analyze-spinner" class="htmx-indicator">
+                            <span class="spinner-sentinel me-2"></span>
+                        </span>
+                        <i class="bi bi-search me-2"></i>Analyze Character
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Tips -->
+        <div class="card card-sentinel mt-4">
+            <div class="card-header">
+                <i class="bi bi-lightbulb me-2"></i>Analysis Tips
+            </div>
+            <div class="card-body">
+                <ul class="mb-0">
+                    <li class="mb-2">Analysis checks ESI public data and zKillboard history</li>
+                    <li class="mb-2">Corp history is analyzed for known hostile organizations</li>
+                    <li class="mb-2">Killboard data reveals activity patterns and potential AWOXing</li>
+                    <li class="mb-2">Results are saved and can be viewed later in Reports</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div id="analysis-result">
+            <!-- Results appear here -->
+            <div class="card card-sentinel">
+                <div class="card-body">
+                    <div class="empty-state">
+                        <i class="bi bi-arrow-left-circle"></i>
+                        <p class="mb-0">Enter a character name or ID to begin analysis</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Auto-focus the input field
+    document.getElementById('character_input').focus();
+
+    // Clear result on new input
+    document.getElementById('character_input').addEventListener('input', function() {
+        // Optional: clear previous result when typing
+    });
+</script>
+{% endblock %}

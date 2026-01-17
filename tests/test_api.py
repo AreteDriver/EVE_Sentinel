@@ -1,14 +1,23 @@
 """Tests for API endpoints."""
 
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.database import get_session_dependency
 from backend.main import app
 from backend.models.applicant import Applicant, CorpHistoryEntry, KillboardStats
+
+
+async def mock_session_override() -> AsyncIterator[AsyncSession]:
+    """Override for database session dependency."""
+    mock_session = MagicMock(spec=AsyncSession)
+    yield mock_session
 
 
 @asynccontextmanager
@@ -21,12 +30,14 @@ async def mock_get_session():
 @pytest.fixture
 def client():
     """Create a test client with mocked database."""
+    app.dependency_overrides[get_session_dependency] = mock_session_override
     with patch("backend.api.analyze.get_session", mock_get_session):
         with patch("backend.api.analyze.ReportRepository") as mock_repo_class:
             mock_repo = MagicMock()
             mock_repo.save = AsyncMock()
             mock_repo_class.return_value = mock_repo
             yield TestClient(app)
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
@@ -64,15 +75,19 @@ def mock_applicant():
 class TestRootEndpoints:
     """Tests for root-level endpoints."""
 
-    def test_root_returns_api_info(self, client):
-        """Root endpoint should return API info."""
-        response = client.get("/")
+    def test_root_returns_dashboard(self, client):
+        """Root endpoint should return frontend dashboard."""
+        with patch("frontend.router.ReportRepository") as mock_repo_class:
+            mock_repo = MagicMock()
+            mock_repo.count_reports = AsyncMock(return_value=0)
+            mock_repo.list_reports = AsyncMock(return_value=[])
+            mock_repo_class.return_value = mock_repo
 
-        assert response.status_code == 200
-        data = response.json()
-        assert data["name"] == "EVE Sentinel"
-        assert data["version"] == "0.1.0"
-        assert "endpoints" in data
+            response = client.get("/")
+
+            assert response.status_code == 200
+            assert "text/html" in response.headers["content-type"]
+            assert "EVE Sentinel" in response.text
 
     def test_health_check(self, client):
         """Health endpoint should return healthy status."""

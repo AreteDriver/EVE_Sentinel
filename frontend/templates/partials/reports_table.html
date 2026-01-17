@@ -1,0 +1,104 @@
+<div class="card card-sentinel">
+    <div class="card-body p-0">
+        {% if reports %}
+        <table class="table table-sentinel mb-0">
+            <thead>
+                <tr>
+                    <th>Character</th>
+                    <th>Risk Level</th>
+                    <th>Red Flags</th>
+                    <th>Yellow Flags</th>
+                    <th>Green Flags</th>
+                    <th>Confidence</th>
+                    <th>Status</th>
+                    <th>Analyzed</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for report in reports %}
+                <tr>
+                    <td>
+                        <a href="/character/{{ report.character_id }}" class="character-link fw-medium">
+                            {{ report.character_name }}
+                        </a>
+                        <br>
+                        <small class="text-muted">ID: {{ report.character_id }}</small>
+                    </td>
+                    <td>
+                        {% set risk = report.overall_risk %}
+                        {% include "components/risk_badge.html" %}
+                    </td>
+                    <td>
+                        {% if report.red_flag_count > 0 %}
+                        <span class="badge bg-danger">{{ report.red_flag_count }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if report.yellow_flag_count > 0 %}
+                        <span class="badge bg-warning text-dark">{{ report.yellow_flag_count }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if report.green_flag_count > 0 %}
+                        <span class="badge bg-success">{{ report.green_flag_count }}</span>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <div class="confidence-bar" style="width: 50px;">
+                                <div class="confidence-bar-fill" style="width: {{ (report.confidence * 100)|int }}%;"></div>
+                            </div>
+                            <small>{{ (report.confidence * 100)|int }}%</small>
+                        </div>
+                    </td>
+                    <td>
+                        {% if report.status.value == 'completed' %}
+                        <span class="badge bg-success">Completed</span>
+                        {% elif report.status.value == 'processing' %}
+                        <span class="badge bg-info">Processing</span>
+                        {% elif report.status.value == 'failed' %}
+                        <span class="badge bg-danger">Failed</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Pending</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <small class="text-muted">{{ report.created_at.strftime('%Y-%m-%d') }}</small>
+                        <br>
+                        <small class="text-muted">{{ report.created_at.strftime('%H:%M') }}</small>
+                    </td>
+                    <td>
+                        <a href="/reports/{{ report.report_id }}" class="btn btn-sm btn-outline-sentinel">
+                            <i class="bi bi-eye"></i> View
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <div class="card-footer bg-transparent border-top">
+            {% include "components/pagination.html" %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+            <i class="bi bi-inbox"></i>
+            <p class="mb-2">No reports found</p>
+            {% if risk_filter %}
+            <p class="text-muted mb-3">No {{ risk_filter }} risk reports available</p>
+            <a href="/reports" class="btn btn-outline-sentinel">Clear Filter</a>
+            {% else %}
+            <a href="/analyze" class="btn btn-sentinel">Run First Analysis</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>

@@ -1,0 +1,50 @@
+<nav id="sidebar" class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+    <div class="position-sticky pt-3">
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">
+                    <i class="bi bi-speedometer2"></i>
+                    Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if '/reports' in request.url.path and '/reports/' not in request.url.path or request.url.path.startswith('/reports?') %}active{% endif %}" href="/reports">
+                    <i class="bi bi-file-earmark-text"></i>
+                    Reports
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.url.path == '/analyze' %}active{% endif %}" href="/analyze">
+                    <i class="bi bi-person-plus"></i>
+                    New Analysis
+                </a>
+            </li>
+        </ul>
+
+        <hr class="my-3" style="border-color: var(--eve-border);">
+
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mb-2 text-muted text-uppercase">
+            <span>Quick Filters</span>
+        </h6>
+        <ul class="nav flex-column mb-2">
+            <li class="nav-item">
+                <a class="nav-link" href="/reports?risk=red">
+                    <i class="bi bi-exclamation-triangle text-danger"></i>
+                    High Risk
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/reports?risk=yellow">
+                    <i class="bi bi-exclamation-circle text-warning"></i>
+                    Moderate Risk
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="/reports?risk=green">
+                    <i class="bi bi-check-circle text-success"></i>
+                    Low Risk
+                </a>
+            </li>
+        </ul>
+    </div>
+</nav>

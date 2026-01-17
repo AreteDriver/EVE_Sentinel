@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - EVE Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-file-earmark-text me-2"></i>Analysis Reports</h1>
+    <p class="text-muted mb-0">{{ total_reports }} total reports</p>
+</div>
+
+<!-- Filters -->
+<div class="card card-sentinel mb-4">
+    <div class="card-body py-3">
+        <div class="d-flex align-items-center gap-3">
+            <span class="text-muted">Filter by risk:</span>
+            <div class="btn-group" role="group">
+                <a href="/reports"
+                   class="filter-btn {% if not risk_filter %}active{% endif %}"
+                   hx-get="/partials/reports-table"
+                   hx-target="#reports-container"
+                   hx-push-url="/reports">
+                    All
+                </a>
+                <a href="/reports?risk=red"
+                   class="filter-btn filter-btn-red {% if risk_filter == 'red' %}active{% endif %}"
+                   hx-get="/partials/reports-table?risk=red"
+                   hx-target="#reports-container"
+                   hx-push-url="/reports?risk=red">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Red
+                </a>
+                <a href="/reports?risk=yellow"
+                   class="filter-btn filter-btn-yellow {% if risk_filter == 'yellow' %}active{% endif %}"
+                   hx-get="/partials/reports-table?risk=yellow"
+                   hx-target="#reports-container"
+                   hx-push-url="/reports?risk=yellow">
+                    <i class="bi bi-exclamation-circle-fill"></i> Yellow
+                </a>
+                <a href="/reports?risk=green"
+                   class="filter-btn filter-btn-green {% if risk_filter == 'green' %}active{% endif %}"
+                   hx-get="/partials/reports-table?risk=green"
+                   hx-target="#reports-container"
+                   hx-push-url="/reports?risk=green">
+                    <i class="bi bi-check-circle-fill"></i> Green
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Reports Table -->
+<div id="reports-container">
+    {% include "partials/reports_table.html" %}
+</div>
+{% endblock %}
