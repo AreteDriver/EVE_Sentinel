@@ -1,6 +1,6 @@
 """Applicant/Character profile models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
@@ -107,5 +107,5 @@ class Applicant(BaseModel):
     declared_alts: list[str] = Field(default_factory=list)
 
     # Metadata
-    fetched_at: datetime = Field(default_factory=datetime.utcnow)
+    fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     data_sources: list[str] = Field(default_factory=list)  # ["esi", "zkill", "auth"]

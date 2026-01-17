@@ -1,6 +1,6 @@
 """ESI (EVE Swagger Interface) client for fetching character data."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -106,7 +106,7 @@ class ESIClient:
 
         # Calculate character age
         birthday = datetime.fromisoformat(char_data["birthday"].replace("Z", "+00:00"))
-        age_days = (datetime.utcnow() - birthday.replace(tzinfo=None)).days
+        age_days = (datetime.now(UTC) - birthday).days
 
         # Fetch corp history
         history_data = await self.get_character_corp_history(character_id)
@@ -133,16 +133,15 @@ class ESIClient:
 
         for i, entry in enumerate(sorted_history):
             start = datetime.fromisoformat(entry["start_date"].replace("Z", "+00:00"))
-            start = start.replace(tzinfo=None)
 
             # End date is start of next entry, or now for current
             if i == 0:
                 end = None
-                duration = (datetime.utcnow() - start).days
+                duration = (datetime.now(UTC) - start).days
             else:
                 end = datetime.fromisoformat(
                     sorted_history[i - 1]["start_date"].replace("Z", "+00:00")
-                ).replace(tzinfo=None)
+                )
                 duration = (end - start).days
 
             corp_id = entry["corporation_id"]

@@ -1,6 +1,6 @@
 """Corporation history analysis for detecting spies and suspicious patterns."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from backend.models.applicant import Applicant
 from backend.models.flags import (
@@ -82,7 +82,7 @@ class CorpHistoryAnalyzer(BaseAnalyzer):
                 )
 
         # Check for rapid corp hopping
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         window_start = now - timedelta(days=self.RAPID_HOP_WINDOW_DAYS)
         recent_corps = [
             entry for entry in history

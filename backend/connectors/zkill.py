@@ -1,6 +1,6 @@
 """zKillboard API client for fetching PvP data."""
 
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -103,7 +103,7 @@ class ZKillClient:
         kills = await self.get_character_kills(character_id, limit=500)
         losses = await self.get_character_losses(character_id, limit=200)
 
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         thirty_days_ago = now - timedelta(days=30)
         ninety_days_ago = now - timedelta(days=90)
 

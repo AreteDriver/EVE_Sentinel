@@ -1,6 +1,6 @@
 """Analysis report models."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import Enum
 from uuid import UUID, uuid4
 
@@ -34,7 +34,7 @@ class AnalysisReport(BaseModel):
     # Report metadata
     report_id: UUID = Field(default_factory=uuid4)
     status: ReportStatus = ReportStatus.PENDING
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     completed_at: datetime | None = None
     requested_by: str | None = None  # Who requested the analysis
 

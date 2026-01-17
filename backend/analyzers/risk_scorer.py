@@ -2,7 +2,7 @@
 
 import asyncio
 import time
-from datetime import datetime
+from datetime import UTC, datetime
 
 from backend.models.applicant import Applicant
 from backend.models.flags import RiskFlag
@@ -94,7 +94,7 @@ class RiskScorer:
 
         # Finalize
         report.status = ReportStatus.COMPLETED
-        report.completed_at = datetime.utcnow()
+        report.completed_at = datetime.now(UTC)
         report.processing_time_ms = int((time.monotonic() - start_time) * 1000)
 
         return report
