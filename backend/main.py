@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.analyze import router as analyze_router
+from backend.api.webhooks import router as webhooks_router
 
 
 @asynccontextmanager
@@ -58,6 +59,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(analyze_router)
+app.include_router(webhooks_router)
 
 
 @app.get("/")
@@ -73,6 +75,8 @@ async def root() -> dict:
             "full_analysis": "/api/v1/analyze/{character_id}",
             "batch_analysis": "/api/v1/analyze/batch",
             "search_and_analyze": "/api/v1/analyze/by-name/{character_name}",
+            "webhook_config": "/api/v1/webhooks/config",
+            "webhook_test": "/api/v1/webhooks/test",
         },
     }
 

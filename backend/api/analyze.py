@@ -3,6 +3,7 @@
 from fastapi import APIRouter, HTTPException
 
 from backend.analyzers.risk_scorer import RiskScorer
+from backend.api.webhooks import send_batch_webhook, send_report_webhook
 from backend.connectors.esi import ESIClient
 from backend.connectors.zkill import ZKillClient
 from backend.models.report import (
@@ -36,6 +37,7 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
     completed = 0
     failed = 0
     reports: list[ReportSummary] = []
+    full_reports: list[AnalysisReport] = []
 
     for char_id in request.character_ids:
         try:
@@ -43,6 +45,7 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
             applicant = await zkill_client.enrich_applicant(applicant)
             report = await risk_scorer.analyze(applicant, request.requested_by)
 
+            full_reports.append(report)
             reports.append(
                 ReportSummary(
                     report_id=report.report_id,
@@ -61,6 +64,10 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
 
         except Exception:
             failed += 1
+
+    # Send batch summary webhook if configured
+    if full_reports:
+        await send_batch_webhook(full_reports)
 
     return BatchAnalysisResult(
         total_requested=len(request.character_ids),
@@ -119,6 +126,9 @@ async def analyze_character(
 
         # Run analysis
         report = await risk_scorer.analyze(applicant, requested_by)
+
+        # Send webhook notification if configured
+        await send_report_webhook(report)
 
         return report
 
