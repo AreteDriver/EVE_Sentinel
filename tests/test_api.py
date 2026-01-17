@@ -1,7 +1,8 @@
 """Tests for API endpoints."""
 
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -10,10 +11,22 @@ from backend.main import app
 from backend.models.applicant import Applicant, CorpHistoryEntry, KillboardStats
 
 
+@asynccontextmanager
+async def mock_get_session():
+    """Mock database session that does nothing."""
+    mock_session = MagicMock()
+    yield mock_session
+
+
 @pytest.fixture
 def client():
-    """Create a test client."""
-    return TestClient(app)
+    """Create a test client with mocked database."""
+    with patch("backend.api.analyze.get_session", mock_get_session):
+        with patch("backend.api.analyze.ReportRepository") as mock_repo_class:
+            mock_repo = MagicMock()
+            mock_repo.save = AsyncMock()
+            mock_repo_class.return_value = mock_repo
+            yield TestClient(app)
 
 
 @pytest.fixture

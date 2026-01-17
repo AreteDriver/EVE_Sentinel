@@ -7,7 +7,9 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.api.analyze import router as analyze_router
+from backend.api.reports import router as reports_router
 from backend.api.webhooks import router as webhooks_router
+from backend.database import close_db, init_db
 
 
 @asynccontextmanager
@@ -15,8 +17,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan handler."""
     # Startup
     print("EVE Sentinel starting up...")
+    await init_db()
+    print("Database initialized")
     yield
     # Shutdown
+    await close_db()
     print("EVE Sentinel shutting down...")
 
 
@@ -59,6 +64,7 @@ app.add_middleware(
 
 # Include routers
 app.include_router(analyze_router)
+app.include_router(reports_router)
 app.include_router(webhooks_router)
 
 
@@ -75,6 +81,9 @@ async def root() -> dict:
             "full_analysis": "/api/v1/analyze/{character_id}",
             "batch_analysis": "/api/v1/analyze/batch",
             "search_and_analyze": "/api/v1/analyze/by-name/{character_name}",
+            "list_reports": "/api/v1/reports",
+            "get_report": "/api/v1/reports/{report_id}",
+            "character_reports": "/api/v1/reports/character/{character_id}",
             "webhook_config": "/api/v1/webhooks/config",
             "webhook_test": "/api/v1/webhooks/test",
         },

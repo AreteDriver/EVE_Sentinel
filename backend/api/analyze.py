@@ -6,6 +6,7 @@ from backend.analyzers.risk_scorer import RiskScorer
 from backend.api.webhooks import send_batch_webhook, send_report_webhook
 from backend.connectors.esi import ESIClient
 from backend.connectors.zkill import ZKillClient
+from backend.database import ReportRepository, get_session
 from backend.models.report import (
     AnalysisReport,
     BatchAnalysisRequest,
@@ -44,6 +45,11 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
             applicant = await esi_client.build_applicant(char_id)
             applicant = await zkill_client.enrich_applicant(applicant)
             report = await risk_scorer.analyze(applicant, request.requested_by)
+
+            # Persist the report
+            async with get_session() as session:
+                repo = ReportRepository(session)
+                await repo.save(report)
 
             full_reports.append(report)
             reports.append(
@@ -126,6 +132,11 @@ async def analyze_character(
 
         # Run analysis
         report = await risk_scorer.analyze(applicant, requested_by)
+
+        # Persist the report
+        async with get_session() as session:
+            repo = ReportRepository(session)
+            await repo.save(report)
 
         # Send webhook notification if configured
         await send_report_webhook(report)
