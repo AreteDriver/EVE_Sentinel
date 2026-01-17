@@ -120,7 +120,7 @@ class ZKillClient:
         for kill in kills:
             kill_time = datetime.fromisoformat(
                 kill.get("killmail_time", "2000-01-01T00:00:00Z").replace("Z", "+00:00")
-            ).replace(tzinfo=None)
+            )
 
             if kill_time >= thirty_days_ago:
                 kills_30d += 1
@@ -167,7 +167,7 @@ class ZKillClient:
             for loss in losses
             if datetime.fromisoformat(
                 loss.get("killmail_time", "2000-01-01T00:00:00Z").replace("Z", "+00:00")
-            ).replace(tzinfo=None)
+            )
             >= thirty_days_ago
         )
 

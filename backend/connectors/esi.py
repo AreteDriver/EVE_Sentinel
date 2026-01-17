@@ -228,7 +228,7 @@ class ESIClient:
             corporation_name=corp_name,
             alliance_id=alliance_id,
             alliance_name=alliance_name,
-            birthday=birthday.replace(tzinfo=None),
+            birthday=birthday,
             security_status=char_data.get("security_status"),
             character_age_days=age_days,
             corp_history=corp_history,

@@ -21,6 +21,77 @@ zkill_client = ZKillClient()
 risk_scorer = RiskScorer()
 
 
+# NOTE: Static routes must be defined before dynamic routes to avoid path conflicts
+# e.g., /analyze/batch must come before /analyze/{character_id}
+
+
+@router.post("/analyze/batch", response_model=BatchAnalysisResult)
+async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
+    """
+    Analyze multiple characters in batch.
+
+    Useful for screening entire application queues.
+    Returns summary results for each character.
+    """
+    completed = 0
+    failed = 0
+    reports: list[ReportSummary] = []
+
+    for char_id in request.character_ids:
+        try:
+            applicant = await esi_client.build_applicant(char_id)
+            applicant = await zkill_client.enrich_applicant(applicant)
+            report = await risk_scorer.analyze(applicant, request.requested_by)
+
+            reports.append(
+                ReportSummary(
+                    report_id=report.report_id,
+                    character_id=report.character_id,
+                    character_name=report.character_name,
+                    overall_risk=report.overall_risk,
+                    confidence=report.confidence,
+                    red_flag_count=report.red_flag_count,
+                    yellow_flag_count=report.yellow_flag_count,
+                    green_flag_count=report.green_flag_count,
+                    created_at=report.created_at,
+                    status=report.status,
+                )
+            )
+            completed += 1
+
+        except Exception:
+            failed += 1
+
+    return BatchAnalysisResult(
+        total_requested=len(request.character_ids),
+        completed=completed,
+        failed=failed,
+        reports=reports,
+    )
+
+
+@router.get("/analyze/by-name/{character_name}", response_model=AnalysisReport)
+async def analyze_by_name(
+    character_name: str,
+    requested_by: str | None = None,
+) -> AnalysisReport:
+    """
+    Analyze a character by name instead of ID.
+
+    Searches for the character first, then runs full analysis.
+    """
+    # Search for character
+    char_id = await esi_client.search_character(character_name)
+
+    if not char_id:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Character '{character_name}' not found",
+        )
+
+    return await analyze_character(char_id, requested_by)
+
+
 @router.post("/analyze/{character_id}", response_model=AnalysisReport)
 async def analyze_character(
     character_id: int,
@@ -92,73 +163,6 @@ async def quick_check(character_id: int) -> dict:
             status_code=500,
             detail=f"Quick check failed: {str(e)}",
         ) from e
-
-
-@router.post("/analyze/batch", response_model=BatchAnalysisResult)
-async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
-    """
-    Analyze multiple characters in batch.
-
-    Useful for screening entire application queues.
-    Returns summary results for each character.
-    """
-    completed = 0
-    failed = 0
-    reports: list[ReportSummary] = []
-
-    for char_id in request.character_ids:
-        try:
-            applicant = await esi_client.build_applicant(char_id)
-            applicant = await zkill_client.enrich_applicant(applicant)
-            report = await risk_scorer.analyze(applicant, request.requested_by)
-
-            reports.append(
-                ReportSummary(
-                    report_id=report.report_id,
-                    character_id=report.character_id,
-                    character_name=report.character_name,
-                    overall_risk=report.overall_risk,
-                    confidence=report.confidence,
-                    red_flag_count=report.red_flag_count,
-                    yellow_flag_count=report.yellow_flag_count,
-                    green_flag_count=report.green_flag_count,
-                    created_at=report.created_at,
-                    status=report.status,
-                )
-            )
-            completed += 1
-
-        except Exception:
-            failed += 1
-
-    return BatchAnalysisResult(
-        total_requested=len(request.character_ids),
-        completed=completed,
-        failed=failed,
-        reports=reports,
-    )
-
-
-@router.get("/analyze/by-name/{character_name}", response_model=AnalysisReport)
-async def analyze_by_name(
-    character_name: str,
-    requested_by: str | None = None,
-) -> AnalysisReport:
-    """
-    Analyze a character by name instead of ID.
-
-    Searches for the character first, then runs full analysis.
-    """
-    # Search for character
-    char_id = await esi_client.search_character(character_name)
-
-    if not char_id:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Character '{character_name}' not found",
-        )
-
-    return await analyze_character(char_id, requested_by)
 
 
 def _generate_quick_summary(report: AnalysisReport) -> str:
