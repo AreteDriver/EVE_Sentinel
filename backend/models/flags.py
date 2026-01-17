@@ -9,9 +9,9 @@ from pydantic import BaseModel
 class FlagSeverity(str, Enum):
     """Risk flag severity levels."""
 
-    RED = "RED"      # High risk - likely reject
+    RED = "RED"  # High risk - likely reject
     YELLOW = "YELLOW"  # Caution - needs investigation
-    GREEN = "GREEN"   # Positive indicator
+    GREEN = "GREEN"  # Positive indicator
 
 
 class FlagCategory(str, Enum):

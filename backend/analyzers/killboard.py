@@ -47,7 +47,7 @@ class KillboardAnalyzer(BaseAnalyzer):
                     reason=f"Has {kb.awox_kills} kills on corp/alliance members",
                     evidence={
                         "awox_kills": kb.awox_kills,
-                        "note": "Review kills for context - may be valid structure bashing"
+                        "note": "Review kills for context - may be valid structure bashing",
                     },
                     confidence=0.9 if kb.awox_kills > 3 else 0.7,
                 )
@@ -104,8 +104,14 @@ class KillboardAnalyzer(BaseAnalyzer):
 
         # GREEN FLAG: Logi pilot (from ship preferences)
         logi_ships = {
-            "Guardian", "Oneiros", "Basilisk", "Scimitar",
-            "Lif", "Ninazu", "Apostle", "Minokawa"
+            "Guardian",
+            "Oneiros",
+            "Basilisk",
+            "Scimitar",
+            "Lif",
+            "Ninazu",
+            "Apostle",
+            "Minokawa",
         }
         if any(ship in logi_ships for ship in kb.top_ships[:5]):
             flags.append(

@@ -30,16 +30,11 @@ class CorpHistoryAnalyzer(BaseAnalyzer):
 
     # Known hostile/spy corporations (configurable)
     # These should be loaded from config in production
-    HOSTILE_CORPS: set[int] = {
-        # Example hostile corp IDs - configure per alliance
-        # 667531913,  # Goonwaffe
-        # 98000001,   # Example
-    }
+    HOSTILE_CORPS: set[int] = set()
+    # Example hostile corp IDs - configure per alliance via add_hostile_corp()
 
-    HOSTILE_ALLIANCES: set[int] = {
-        # Example hostile alliance IDs
-        # 1354830081,  # Goonswarm Federation
-    }
+    HOSTILE_ALLIANCES: set[int] = set()
+    # Example hostile alliance IDs - configure via add_hostile_alliance()
 
     # Thresholds
     RAPID_HOP_COUNT = 5  # Corps in 6 months = red flag
@@ -58,7 +53,8 @@ class CorpHistoryAnalyzer(BaseAnalyzer):
 
         # Check for hostile corp membership
         hostile_memberships = [
-            entry for entry in history
+            entry
+            for entry in history
             if entry.corporation_id in self.HOSTILE_CORPS or entry.is_hostile
         ]
 
@@ -84,10 +80,7 @@ class CorpHistoryAnalyzer(BaseAnalyzer):
         # Check for rapid corp hopping
         now = datetime.now(UTC)
         window_start = now - timedelta(days=self.RAPID_HOP_WINDOW_DAYS)
-        recent_corps = [
-            entry for entry in history
-            if entry.start_date >= window_start
-        ]
+        recent_corps = [entry for entry in history if entry.start_date >= window_start]
 
         if len(recent_corps) >= self.RAPID_HOP_COUNT:
             flags.append(
@@ -149,13 +142,13 @@ class CorpHistoryAnalyzer(BaseAnalyzer):
             )
 
         # GREEN FLAG: Established character
-        total_player_corp_days = sum(
-            e.duration_days or 0 for e in history if not e.is_npc
-        )
+        total_player_corp_days = sum(e.duration_days or 0 for e in history if not e.is_npc)
         longest_tenure = max((e.duration_days or 0 for e in history), default=0)
 
-        if (total_player_corp_days >= self.ESTABLISHED_TOTAL_DAYS and
-            longest_tenure >= self.ESTABLISHED_TENURE_DAYS):
+        if (
+            total_player_corp_days >= self.ESTABLISHED_TOTAL_DAYS
+            and longest_tenure >= self.ESTABLISHED_TENURE_DAYS
+        ):
             flags.append(
                 RiskFlag(
                     severity=FlagSeverity.GREEN,

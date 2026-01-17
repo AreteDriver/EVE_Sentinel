@@ -1,6 +1,5 @@
 """Test model definitions."""
 
-
 from backend.models.flags import FlagCategory, FlagSeverity, RedFlags, RiskFlag
 from backend.models.report import AnalysisReport, OverallRisk
 

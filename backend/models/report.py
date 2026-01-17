@@ -13,9 +13,9 @@ from .flags import FlagSeverity, RiskFlag
 class OverallRisk(str, Enum):
     """Overall risk assessment."""
 
-    RED = "RED"        # High risk - recommend reject
+    RED = "RED"  # High risk - recommend reject
     YELLOW = "YELLOW"  # Moderate risk - needs review
-    GREEN = "GREEN"    # Low risk - likely safe
+    GREEN = "GREEN"  # Low risk - likely safe
     UNKNOWN = "UNKNOWN"  # Insufficient data
 
 

@@ -63,10 +63,7 @@ class RiskScorer:
         errors: list[str] = []
 
         # Run all analyzers concurrently
-        tasks = [
-            self._run_analyzer(analyzer, applicant)
-            for analyzer in self.analyzers
-        ]
+        tasks = [self._run_analyzer(analyzer, applicant) for analyzer in self.analyzers]
 
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
@@ -139,9 +136,7 @@ class RiskScorer:
             )
 
         if "SHORT_TENURE" in flag_codes:
-            recommendations.append(
-                "New to current corp - consider probationary period"
-            )
+            recommendations.append("New to current corp - consider probationary period")
 
         if report.suspected_alts:
             recommendations.append(

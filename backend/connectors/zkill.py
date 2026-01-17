@@ -163,16 +163,15 @@ class ZKillClient:
         # Process losses
         deaths_total = len(losses)
         deaths_30d = sum(
-            1 for loss in losses
+            1
+            for loss in losses
             if datetime.fromisoformat(
                 loss.get("killmail_time", "2000-01-01T00:00:00Z").replace("Z", "+00:00")
-            ).replace(tzinfo=None) >= thirty_days_ago
+            ).replace(tzinfo=None)
+            >= thirty_days_ago
         )
 
-        isk_lost = sum(
-            loss.get("zkb", {}).get("totalValue", 0)
-            for loss in losses
-        )
+        isk_lost = sum(loss.get("zkb", {}).get("totalValue", 0) for loss in losses)
 
         # Top ships (by usage count)
         top_ships = sorted(ships_used.keys(), key=lambda x: ships_used[x], reverse=True)[:10]
