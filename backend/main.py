@@ -11,21 +11,27 @@ from fastapi.staticfiles import StaticFiles
 from backend.api.analyze import router as analyze_router
 from backend.api.reports import router as reports_router
 from backend.api.webhooks import router as webhooks_router
+from backend.config import settings
 from backend.database import close_db, init_db
+from backend.logging_config import get_logger, setup_logging
 from frontend import router as frontend_router
+
+# Initialize logging
+setup_logging(settings.log_level)
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """Application lifespan handler."""
     # Startup
-    print("EVE Sentinel starting up...")
+    logger.info("EVE Sentinel starting up...")
     await init_db()
-    print("Database initialized")
+    logger.info("Database initialized")
     yield
     # Shutdown
     await close_db()
-    print("EVE Sentinel shutting down...")
+    logger.info("EVE Sentinel shutting down...")
 
 
 app = FastAPI(
@@ -56,12 +62,12 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
-# CORS middleware
+# CORS middleware - configure via CORS_ORIGINS env var
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure for production
+    allow_origins=settings.get_cors_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE"],
     allow_headers=["*"],
 )
 

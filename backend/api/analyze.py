@@ -1,5 +1,7 @@
 """Analysis API endpoints."""
 
+import asyncio
+
 from fastapi import APIRouter, HTTPException
 
 from backend.analyzers.risk_scorer import RiskScorer
@@ -7,6 +9,7 @@ from backend.api.webhooks import send_batch_webhook, send_report_webhook
 from backend.connectors.esi import ESIClient
 from backend.connectors.zkill import ZKillClient
 from backend.database import ReportRepository, get_session
+from backend.logging_config import get_logger
 from backend.models.report import (
     AnalysisReport,
     BatchAnalysisRequest,
@@ -14,6 +17,8 @@ from backend.models.report import (
     OverallRisk,
     ReportSummary,
 )
+
+logger = get_logger(__name__)
 
 router = APIRouter(prefix="/api/v1", tags=["analysis"])
 
@@ -27,6 +32,38 @@ risk_scorer = RiskScorer()
 # e.g., /analyze/batch must come before /analyze/{character_id}
 
 
+async def _analyze_single_character(
+    char_id: int,
+    requested_by: str | None,
+) -> AnalysisReport | None:
+    """
+    Analyze a single character for batch processing.
+
+    Returns None if analysis fails.
+    """
+    try:
+        applicant = await esi_client.build_applicant(char_id)
+        applicant = await zkill_client.enrich_applicant(applicant)
+        report = await risk_scorer.analyze(applicant, requested_by)
+
+        # Persist the report
+        async with get_session() as session:
+            repo = ReportRepository(session)
+            await repo.save(report)
+
+        logger.info(
+            "Analyzed character %d (%s): %s",
+            char_id,
+            report.character_name,
+            report.overall_risk.value,
+        )
+        return report
+
+    except Exception as e:
+        logger.error("Failed to analyze character %d: %s", char_id, str(e))
+        return None
+
+
 @router.post("/analyze/batch", response_model=BatchAnalysisResult)
 async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
     """
@@ -35,22 +72,23 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
     Useful for screening entire application queues.
     Returns summary results for each character.
     """
-    completed = 0
-    failed = 0
+    logger.info(
+        "Starting batch analysis for %d characters", len(request.character_ids)
+    )
+
+    # Process all characters in parallel
+    tasks = [
+        _analyze_single_character(char_id, request.requested_by)
+        for char_id in request.character_ids
+    ]
+    results = await asyncio.gather(*tasks)
+
+    # Collect successful results
     reports: list[ReportSummary] = []
     full_reports: list[AnalysisReport] = []
 
-    for char_id in request.character_ids:
-        try:
-            applicant = await esi_client.build_applicant(char_id)
-            applicant = await zkill_client.enrich_applicant(applicant)
-            report = await risk_scorer.analyze(applicant, request.requested_by)
-
-            # Persist the report
-            async with get_session() as session:
-                repo = ReportRepository(session)
-                await repo.save(report)
-
+    for report in results:
+        if report is not None:
             full_reports.append(report)
             reports.append(
                 ReportSummary(
@@ -66,10 +104,11 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
                     status=report.status,
                 )
             )
-            completed += 1
 
-        except Exception:
-            failed += 1
+    completed = len(full_reports)
+    failed = len(request.character_ids) - completed
+
+    logger.info("Batch analysis complete: %d succeeded, %d failed", completed, failed)
 
     # Send batch summary webhook if configured
     if full_reports:
@@ -93,10 +132,13 @@ async def analyze_by_name(
 
     Searches for the character first, then runs full analysis.
     """
+    logger.info("Searching for character by name: %s", character_name)
+
     # Search for character
     char_id = await esi_client.search_character(character_name)
 
     if not char_id:
+        logger.warning("Character not found: %s", character_name)
         raise HTTPException(
             status_code=404,
             detail=f"Character '{character_name}' not found",
@@ -123,6 +165,8 @@ async def analyze_character(
     Returns:
         Complete analysis report with risk flags and recommendations
     """
+    logger.info("Starting analysis for character %d", character_id)
+
     try:
         # Fetch character data from ESI
         applicant = await esi_client.build_applicant(character_id)
@@ -141,9 +185,17 @@ async def analyze_character(
         # Send webhook notification if configured
         await send_report_webhook(report)
 
+        logger.info(
+            "Analysis complete for %s (%d): %s",
+            report.character_name,
+            character_id,
+            report.overall_risk.value,
+        )
+
         return report
 
     except Exception as e:
+        logger.error("Analysis failed for character %d: %s", character_id, str(e))
         raise HTTPException(
             status_code=500,
             detail=f"Analysis failed: {str(e)}",
@@ -158,6 +210,8 @@ async def quick_check(character_id: int) -> dict:
     Use this for rapid screening before full analysis.
     Returns minimal data for quick decision making.
     """
+    logger.debug("Quick check for character %d", character_id)
+
     try:
         # Just fetch basic ESI data
         applicant = await esi_client.build_applicant(character_id)
@@ -167,6 +221,10 @@ async def quick_check(character_id: int) -> dict:
 
         # Run analysis
         report = await risk_scorer.analyze(applicant)
+
+        logger.debug(
+            "Quick check complete for %d: %s", character_id, report.overall_risk.value
+        )
 
         return {
             "character_id": character_id,
@@ -180,6 +238,7 @@ async def quick_check(character_id: int) -> dict:
         }
 
     except Exception as e:
+        logger.error("Quick check failed for character %d: %s", character_id, str(e))
         raise HTTPException(
             status_code=500,
             detail=f"Quick check failed: {str(e)}",

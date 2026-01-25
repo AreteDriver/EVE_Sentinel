@@ -12,6 +12,10 @@ class Settings(BaseSettings):
         case_sensitive=False,
     )
 
+    # Application settings
+    log_level: str = "INFO"
+    cors_origins: str = "http://localhost:8000,http://127.0.0.1:8000"
+
     # Discord webhooks
     discord_webhook_url: str | None = None
     discord_alert_role_id: str | None = None  # Role to mention for high-risk
@@ -44,6 +48,12 @@ class Settings(BaseSettings):
         if not self.hostile_alliances:
             return set()
         return {int(x.strip()) for x in self.hostile_alliances.split(",") if x.strip()}
+
+    def get_cors_origins(self) -> list[str]:
+        """Parse CORS origins from comma-separated string."""
+        if not self.cors_origins:
+            return []
+        return [x.strip() for x in self.cors_origins.split(",") if x.strip()]
 
 
 # Global settings instance
