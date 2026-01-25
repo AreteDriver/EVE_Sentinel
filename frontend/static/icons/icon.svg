@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a2332"/>
+      <stop offset="100%" style="stop-color:#0a0e14"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#5eb0ff"/>
+      <stop offset="100%" style="stop-color:#3d9cf9"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="url(#bg)"/>
+
+  <!-- Shield outline -->
+  <path d="M256 64 L416 128 L416 256 C416 352 336 432 256 464 C176 432 96 352 96 256 L96 128 Z"
+        fill="none" stroke="url(#accent)" stroke-width="16"/>
+
+  <!-- Eye symbol -->
+  <ellipse cx="256" cy="240" rx="80" ry="50" fill="none" stroke="url(#accent)" stroke-width="12"/>
+  <circle cx="256" cy="240" r="24" fill="url(#accent)"/>
+
+  <!-- Scan lines -->
+  <line x1="160" y1="320" x2="352" y2="320" stroke="url(#accent)" stroke-width="6" stroke-dasharray="8,8"/>
+  <line x1="176" y1="350" x2="336" y2="350" stroke="url(#accent)" stroke-width="4" stroke-dasharray="6,6"/>
+  <line x1="192" y1="380" x2="320" y2="380" stroke="url(#accent)" stroke-width="3" stroke-dasharray="4,4"/>
+</svg>

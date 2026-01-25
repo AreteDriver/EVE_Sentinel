@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Offline - EVE Sentinel</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.2/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="/static/css/sentinel.css" rel="stylesheet">
+    <style>
+        .offline-container {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 2rem;
+        }
+        .offline-icon {
+            font-size: 5rem;
+            color: var(--eve-accent);
+            margin-bottom: 1.5rem;
+            opacity: 0.7;
+        }
+        .offline-title {
+            font-size: 2rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        .offline-message {
+            color: var(--eve-text-muted);
+            margin-bottom: 2rem;
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <div class="offline-container">
+        <i class="bi bi-wifi-off offline-icon"></i>
+        <h1 class="offline-title">You're Offline</h1>
+        <p class="offline-message">
+            EVE Sentinel requires an internet connection to analyze characters
+            and fetch data from ESI. Please check your connection and try again.
+        </p>
+        <button class="btn btn-sentinel" onclick="window.location.reload()">
+            <i class="bi bi-arrow-clockwise me-2"></i>Try Again
+        </button>
+    </div>
+</body>
+</html>

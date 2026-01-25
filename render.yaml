@@ -1,0 +1,26 @@
+# EVE Sentinel - Render Configuration
+# Deploy by connecting your GitHub repo to Render
+# See: https://render.com/docs
+
+services:
+  - type: web
+    name: eve-sentinel
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: 8000
+      - key: DATABASE_URL
+        value: sqlite+aiosqlite:///./data/sentinel.db
+      - key: ESI_CLIENT_ID
+        sync: false
+      - key: ESI_SECRET_KEY
+        sync: false
+      - key: DISCORD_WEBHOOK_URL
+        sync: false
+    disk:
+      name: sentinel-data
+      mountPath: /app/data
+      sizeGB: 1
