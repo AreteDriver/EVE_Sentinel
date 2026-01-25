@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException
 
 from backend.analyzers.risk_scorer import RiskScorer
 from backend.api.webhooks import send_batch_webhook, send_report_webhook
+from backend.config import settings
+from backend.connectors.auth_bridge import AuthBridge, get_auth_bridge
 from backend.connectors.esi import ESIClient
 from backend.connectors.zkill import ZKillClient
 from backend.database import ReportRepository, get_session
@@ -28,6 +30,19 @@ esi_client = ESIClient()
 zkill_client = ZKillClient()
 risk_scorer = RiskScorer()
 
+# Initialize auth bridge if configured
+auth_bridge: AuthBridge | None = None
+if settings.auth_system and settings.auth_bridge_url and settings.auth_bridge_token:
+    try:
+        auth_bridge = get_auth_bridge(
+            settings.auth_system,
+            settings.auth_bridge_url,
+            settings.auth_bridge_token,
+        )
+        logger.info(f"Auth bridge initialized: {settings.auth_system}")
+    except ValueError as e:
+        logger.warning(f"Failed to initialize auth bridge: {e}")
+
 
 # NOTE: Static routes must be defined before dynamic routes to avoid path conflicts
 # e.g., /analyze/batch must come before /analyze/{character_id}
@@ -45,6 +60,14 @@ async def _analyze_single_character(
     try:
         applicant = await esi_client.build_applicant(char_id)
         applicant = await zkill_client.enrich_applicant(applicant)
+
+        # Enrich with auth system data if available
+        if auth_bridge:
+            try:
+                applicant = await auth_bridge.enrich_applicant(applicant)
+            except Exception:
+                pass  # Auth enrichment is optional
+
         report = await risk_scorer.analyze(applicant, requested_by)
 
         # Persist the report
@@ -175,6 +198,14 @@ async def analyze_character(
         # Enrich with killboard data
         applicant = await zkill_client.enrich_applicant(applicant)
 
+        # Enrich with auth system data if available
+        if auth_bridge:
+            try:
+                applicant = await auth_bridge.enrich_applicant(applicant)
+            except Exception as e:
+                # Auth enrichment is optional, log and continue
+                logger.debug(f"Auth bridge enrichment skipped: {e}")
+
         # Run analysis
         report = await risk_scorer.analyze(applicant, requested_by)
 
@@ -219,6 +250,13 @@ async def quick_check(character_id: int) -> dict[str, Any]:
 
         # Quick killboard check
         applicant = await zkill_client.enrich_applicant(applicant)
+
+        # Enrich with auth system data if available
+        if auth_bridge:
+            try:
+                applicant = await auth_bridge.enrich_applicant(applicant)
+            except Exception:
+                pass  # Auth enrichment is optional
 
         # Run analysis
         report = await risk_scorer.analyze(applicant)

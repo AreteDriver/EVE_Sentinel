@@ -8,6 +8,7 @@ from backend.models.applicant import Applicant
 from backend.models.flags import RiskFlag
 from backend.models.report import AnalysisReport, OverallRisk, ReportStatus
 
+from .activity import ActivityAnalyzer
 from .base import BaseAnalyzer
 from .corp_history import CorpHistoryAnalyzer
 from .killboard import KillboardAnalyzer
@@ -30,8 +31,8 @@ class RiskScorer:
             KillboardAnalyzer(),
             CorpHistoryAnalyzer(),
             WalletAnalyzer(),
+            ActivityAnalyzer(),
             # Add more analyzers as they're implemented:
-            # ActivityAnalyzer(),
             # AssetsAnalyzer(),
             # SocialAnalyzer(),
         ]

@@ -37,6 +37,11 @@ class Settings(BaseSettings):
     # Database (for future persistence)
     database_url: str = "sqlite:///./sentinel.db"
 
+    # Auth Bridge (Alliance Auth or SeAT integration)
+    auth_system: str | None = None  # "alliance_auth" or "seat"
+    auth_bridge_url: str | None = None  # e.g., "https://auth.youralliance.com"
+    auth_bridge_token: str | None = None  # API token for auth system
+
     def get_hostile_corp_ids(self) -> set[int]:
         """Parse hostile corp IDs from comma-separated string."""
         if not self.hostile_corps:
