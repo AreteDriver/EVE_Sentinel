@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime
 from enum import Enum
+from typing import Any
 
 import httpx
 
@@ -60,7 +61,7 @@ class DiscordWebhook:
         }
         return emojis.get(risk, "⚪")
 
-    def _build_embed(self, report: AnalysisReport) -> dict:
+    def _build_embed(self, report: AnalysisReport) -> dict[str, Any]:
         """Build Discord embed from analysis report."""
         risk_emoji = self._get_risk_emoji(report.overall_risk)
         color = self._get_color(report.overall_risk)
@@ -177,7 +178,7 @@ class DiscordWebhook:
         if mention_role and report.overall_risk == OverallRisk.RED:
             content = f"<@&{mention_role}> High-risk applicant detected!"
 
-        payload = {
+        payload: dict[str, Any] = {
             "embeds": [embed],
         }
         if content:

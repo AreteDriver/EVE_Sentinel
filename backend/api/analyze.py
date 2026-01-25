@@ -2,6 +2,8 @@
 
 import asyncio
 
+from typing import Any
+
 from fastapi import APIRouter, HTTPException
 
 from backend.analyzers.risk_scorer import RiskScorer
@@ -203,7 +205,7 @@ async def analyze_character(
 
 
 @router.get("/quick-check/{character_id}")
-async def quick_check(character_id: int) -> dict:
+async def quick_check(character_id: int) -> dict[str, Any]:
     """
     Fast risk check - just corp history and basic killboard.
 

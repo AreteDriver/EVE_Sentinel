@@ -41,7 +41,7 @@ def get_logger(name: str) -> logging.Logger:
     return logging.getLogger(name)
 
 
-class LoggerAdapter(logging.LoggerAdapter):
+class LoggerAdapter(logging.LoggerAdapter[logging.Logger]):
     """Logger adapter that adds context to log messages."""
 
     def process(self, msg: str, kwargs: Any) -> tuple[str, Any]:

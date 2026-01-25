@@ -85,7 +85,7 @@ app.include_router(frontend_router)
 
 
 @app.get("/health")
-async def health() -> dict:
+async def health() -> dict[str, str]:
     """Health check endpoint."""
     return {"status": "healthy", "service": "eve-sentinel"}
 

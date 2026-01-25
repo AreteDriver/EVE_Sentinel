@@ -4,7 +4,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 import httpx
-from cachetools import TTLCache
+from cachetools import TTLCache  # type: ignore[import-untyped]
 
 from backend.models.applicant import (
     Applicant,
@@ -50,7 +50,10 @@ class ESIClient:
         """Make a GET request to ESI."""
         cache_key = endpoint
         if cache_key in self._cache:
-            return self._cache[cache_key]
+            cached = self._cache[cache_key]
+            if isinstance(cached, dict):
+                return dict(cached)
+            return list(cached)
 
         client = await self._get_client()
         url = f"{self.BASE_URL}{endpoint}"
@@ -60,7 +63,9 @@ class ESIClient:
 
         data = response.json()
         self._cache[cache_key] = data
-        return data
+        if isinstance(data, dict):
+            return dict(data)
+        return list(data)
 
     async def get_character(self, character_id: int) -> dict[str, Any]:
         """Get character public info."""

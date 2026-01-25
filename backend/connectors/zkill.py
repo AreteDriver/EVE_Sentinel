@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
-from cachetools import TTLCache
+from cachetools import TTLCache  # type: ignore[import-untyped]
 
 from backend.models.applicant import Applicant, KillboardStats
 
@@ -48,7 +48,7 @@ class ZKillClient:
         """Make a GET request to zKillboard."""
         cache_key = endpoint
         if cache_key in self._cache:
-            return self._cache[cache_key]
+            return list(self._cache[cache_key])
 
         client = await self._get_client()
         url = f"{self.BASE_URL}{endpoint}"

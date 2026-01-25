@@ -68,7 +68,7 @@ class RiskScorer:
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
         for analyzer, result in zip(self.analyzers, results):
-            if isinstance(result, Exception):
+            if isinstance(result, BaseException):
                 errors.append(f"{analyzer.name}: {str(result)}")
             else:
                 all_flags.extend(result)
