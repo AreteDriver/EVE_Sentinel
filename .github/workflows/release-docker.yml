@@ -68,4 +68,5 @@ jobs:
       - name: Generate SBOM
         uses: anchore/sbom-action@v0
         with:
-          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
+          # Use lowercase image name from metadata action output
+          image: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
