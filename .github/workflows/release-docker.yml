@@ -70,3 +70,5 @@ jobs:
         with:
           # Use lowercase image name from metadata action output
           image: ${{ fromJSON(steps.meta.outputs.json).tags[0] }}
+          # Disable artifact upload (can hit storage quota)
+          upload-artifact: false
