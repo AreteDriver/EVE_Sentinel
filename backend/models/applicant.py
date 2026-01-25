@@ -6,6 +6,19 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 
+class WalletEntry(BaseModel):
+    """A single wallet journal entry."""
+
+    id: int
+    date: datetime
+    ref_type: str
+    amount: float
+    balance: float | None = None
+    first_party_id: int | None = None
+    second_party_id: int | None = None
+    reason: str | None = None
+
+
 class CorpHistoryEntry(BaseModel):
     """A single corporation membership record."""
 
@@ -105,6 +118,9 @@ class Applicant(BaseModel):
     # Alt detection
     suspected_alts: list[SuspectedAlt] = Field(default_factory=list)
     declared_alts: list[str] = Field(default_factory=list)
+
+    # Wallet data (requires auth)
+    wallet_journal: list[WalletEntry] = Field(default_factory=list)
 
     # Metadata
     fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))

@@ -11,6 +11,7 @@ from backend.models.report import AnalysisReport, OverallRisk, ReportStatus
 from .base import BaseAnalyzer
 from .corp_history import CorpHistoryAnalyzer
 from .killboard import KillboardAnalyzer
+from .wallet import WalletAnalyzer
 
 
 class RiskScorer:
@@ -28,10 +29,10 @@ class RiskScorer:
         self.analyzers: list[BaseAnalyzer] = [
             KillboardAnalyzer(),
             CorpHistoryAnalyzer(),
+            WalletAnalyzer(),
             # Add more analyzers as they're implemented:
             # ActivityAnalyzer(),
             # AssetsAnalyzer(),
-            # WalletAnalyzer(),
             # SocialAnalyzer(),
         ]
 
@@ -128,6 +129,16 @@ class RiskScorer:
         if "RAPID_CORP_HOP" in flag_codes:
             recommendations.append(
                 "Investigate rapid corp changes - may indicate instability or spy behavior"
+            )
+
+        if "RMT_PATTERN" in flag_codes:
+            recommendations.append(
+                "Potential RMT detected - regular same-amount transfers suggest bought ISK"
+            )
+
+        if "LARGE_PRE_JOIN_TRANSFER" in flag_codes:
+            recommendations.append(
+                "Large ISK transfer before joining - investigate source and purpose"
             )
 
         if "LOW_ACTIVITY" in flag_codes:
