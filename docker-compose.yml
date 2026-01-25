@@ -1,0 +1,61 @@
+# EVE Sentinel - Docker Compose Configuration
+# For local development and self-hosted deployments
+
+version: '3.8'
+
+services:
+  sentinel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    container_name: eve-sentinel
+    restart: unless-stopped
+    ports:
+      - "${PORT:-8000}:8000"
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./data/sentinel.db
+      - ESI_CLIENT_ID=${ESI_CLIENT_ID:-}
+      - ESI_SECRET_KEY=${ESI_SECRET_KEY:-}
+      - ESI_CALLBACK_URL=${ESI_CALLBACK_URL:-}
+      - DISCORD_WEBHOOK_URL=${DISCORD_WEBHOOK_URL:-}
+      - DISCORD_ALERT_ROLE_ID=${DISCORD_ALERT_ROLE_ID:-}
+      - WEBHOOK_ON_RED=${WEBHOOK_ON_RED:-true}
+      - WEBHOOK_ON_YELLOW=${WEBHOOK_ON_YELLOW:-false}
+      - WEBHOOK_ON_BATCH=${WEBHOOK_ON_BATCH:-true}
+      - HOSTILE_CORPS=${HOSTILE_CORPS:-}
+      - HOSTILE_ALLIANCES=${HOSTILE_ALLIANCES:-}
+    volumes:
+      - sentinel-data:/app/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Optional: PostgreSQL for production deployments
+  # Uncomment to use PostgreSQL instead of SQLite
+  # postgres:
+  #   image: postgres:16-alpine
+  #   container_name: eve-sentinel-db
+  #   restart: unless-stopped
+  #   environment:
+  #     - POSTGRES_USER=sentinel
+  #     - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-sentinel}
+  #     - POSTGRES_DB=eve_sentinel
+  #   volumes:
+  #     - postgres-data:/var/lib/postgresql/data
+  #   healthcheck:
+  #     test: ["CMD-SHELL", "pg_isready -U sentinel -d eve_sentinel"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  sentinel-data:
+  # postgres-data:
+
+networks:
+  default:
+    name: eve-sentinel-network

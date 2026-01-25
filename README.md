@@ -6,6 +6,21 @@ Analyze ESI data from alliance auth systems to produce risk assessments for recr
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://hub.docker.com)
+[![PWA](https://img.shields.io/badge/PWA-Installable-purple.svg)](https://web.dev/progressive-web-apps/)
+
+## Platforms
+
+| Platform | Status | Download |
+|----------|--------|----------|
+| Web (PWA) | Available | [Install from browser](#pwa-installation) |
+| Docker | Available | [Docker Hub](#docker-deployment) |
+| macOS (Apple Silicon) | Available | [Releases](../../releases) |
+| macOS (Intel) | Available | [Releases](../../releases) |
+| Windows | Available | [Releases](../../releases) |
+| Linux | Available | [Releases](../../releases) |
+| iOS | Coming Soon | App Store |
+| Android | Coming Soon | Google Play |
 
 ## Features
 
@@ -237,14 +252,136 @@ mypy backend/
 ruff check .
 ```
 
+## Multi-Platform Deployment
+
+### PWA Installation
+
+EVE Sentinel is a Progressive Web App (PWA) that can be installed directly from your browser:
+
+1. Open EVE Sentinel in Chrome, Edge, or Safari
+2. Look for the "Install" button in the address bar (or menu)
+3. Click "Install" to add it to your home screen/applications
+
+The PWA works offline for cached data and syncs when online.
+
+### Docker Deployment
+
+```bash
+# Quick start with Docker
+docker run -d \
+  --name eve-sentinel \
+  -p 8000:8000 \
+  -v sentinel-data:/app/data \
+  -e ESI_CLIENT_ID=your_client_id \
+  -e ESI_SECRET_KEY=your_secret_key \
+  ghcr.io/aretedriver/eve_sentinel:latest
+
+# Or using Docker Compose
+docker compose up -d
+```
+
+### Cloud Deployment
+
+**Railway** (recommended for beginners):
+```bash
+# One-click deploy
+railway init
+railway up
+```
+
+**Fly.io**:
+```bash
+fly launch --no-deploy
+fly secrets set ESI_CLIENT_ID=xxx ESI_SECRET_KEY=xxx
+fly deploy
+```
+
+**Render**: Connect your GitHub repo and deploy automatically.
+
+**Heroku/Dokku**: Uses the included `Procfile`.
+
+### Desktop Applications
+
+Native desktop apps are available for Windows, macOS, and Linux:
+
+1. Go to [Releases](../../releases)
+2. Download the installer for your platform:
+   - **macOS**: `.dmg` (Intel or Apple Silicon)
+   - **Windows**: `.msi` or `.exe`
+   - **Linux**: `.AppImage` or `.deb`
+
+#### Building Desktop Apps Locally
+
+Requires [Rust](https://rustup.rs/) and [Tauri CLI](https://tauri.app/):
+
+```bash
+# Install Tauri CLI
+cargo install tauri-cli
+
+# Build for your current platform
+cd src-tauri
+cargo tauri build
+
+# Build for specific target
+cargo tauri build --target aarch64-apple-darwin  # macOS ARM
+cargo tauri build --target x86_64-pc-windows-msvc  # Windows
+```
+
+### Mobile Applications
+
+#### iOS (App Store)
+
+To build for iOS (requires macOS and Xcode):
+
+```bash
+cd src-tauri
+cargo tauri ios init
+cargo tauri ios build
+```
+
+Then open the generated Xcode project to sign and submit to App Store.
+
+#### Android (Google Play)
+
+To build for Android (requires Android Studio and NDK):
+
+```bash
+cd src-tauri
+cargo tauri android init
+cargo tauri android build --apk
+```
+
+The APK will be generated in `src-tauri/gen/android/app/build/outputs/`.
+
+### Mac App Store Submission Checklist
+
+1. Set up Apple Developer account ($99/year)
+2. Configure signing identity in `src-tauri/tauri.conf.json`
+3. Generate app icons (use `tauri icon` command)
+4. Build with `cargo tauri build --target aarch64-apple-darwin`
+5. Submit via Xcode or Transporter
+
+### Google Play Store Submission Checklist
+
+1. Set up Google Play Developer account ($25 one-time)
+2. Configure signing keystore
+3. Build release AAB: `cargo tauri android build --aab`
+4. Upload to Play Console
+
 ## Roadmap
 
 - [x] Core analysis framework
 - [x] ESI integration
 - [x] zKillboard analysis
+- [x] Web dashboard
+- [x] PWA support
+- [x] Docker containerization
+- [x] Desktop apps (Tauri)
+- [x] Discord webhook notifications
+- [ ] iOS App Store release
+- [ ] Android Play Store release
 - [ ] Alliance Auth bridge
 - [ ] SeAT integration
-- [ ] Web dashboard
 - [ ] Discord bot integration
 - [ ] PDF report generation
 - [ ] Machine learning risk scoring
