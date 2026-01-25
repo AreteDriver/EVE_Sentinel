@@ -1,7 +1,6 @@
 """Analysis API endpoints."""
 
 import asyncio
-
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
