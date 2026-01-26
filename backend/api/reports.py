@@ -1,14 +1,24 @@
 """Report retrieval API endpoints."""
 
+import io
+import zipfile
+from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import Response
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import ReportRepository, get_session_dependency
 from backend.models.report import AnalysisReport, OverallRisk, ReportSummary
 from backend.services import PDFGenerator
+
+
+class BulkPDFRequest(BaseModel):
+    """Request for bulk PDF export."""
+
+    report_ids: list[UUID]
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
@@ -111,6 +121,49 @@ async def get_report_pdf(
         media_type="application/pdf",
         headers={
             "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
+
+
+@router.post("/bulk-pdf")
+async def get_bulk_pdf(
+    request: BulkPDFRequest,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> Response:
+    """
+    Download multiple reports as a ZIP file of PDFs.
+
+    Takes a list of report IDs and returns a ZIP archive containing
+    individual PDF files for each report.
+    """
+    if not request.report_ids:
+        raise HTTPException(status_code=400, detail="No report IDs provided")
+
+    if len(request.report_ids) > 50:
+        raise HTTPException(status_code=400, detail="Maximum 50 reports per request")
+
+    repo = ReportRepository(session)
+    pdf_generator = PDFGenerator()
+
+    # Create ZIP file in memory
+    zip_buffer = io.BytesIO()
+
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for report_id in request.report_ids:
+            report = await repo.get_by_id(report_id)
+            if report:
+                pdf_content = pdf_generator.generate(report)
+                filename = pdf_generator.generate_filename(report)
+                zip_file.writestr(filename, pdf_content)
+
+    zip_buffer.seek(0)
+    timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
+
+    return Response(
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
+        headers={
+            "Content-Disposition": f'attachment; filename="sentinel_reports_{timestamp}.zip"',
         },
     )
 
