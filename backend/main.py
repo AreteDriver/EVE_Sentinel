@@ -12,8 +12,10 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.api.admin import router as admin_router
 from backend.api.analyze import router as analyze_router
+from backend.api.analytics import router as analytics_router
 from backend.api.audit import router as audit_router
 from backend.api.auth import router as auth_router
+from backend.api.fleet import router as fleet_router
 from backend.api.scheduler import router as scheduler_router
 from backend.api.users import router as users_router
 from backend.api.ml import router as ml_router
@@ -128,6 +130,8 @@ app.include_router(admin_router)
 app.include_router(audit_router)
 app.include_router(users_router)
 app.include_router(scheduler_router)
+app.include_router(analytics_router)
+app.include_router(fleet_router)
 
 # Include frontend router (must be last to avoid path conflicts)
 app.include_router(frontend_router)

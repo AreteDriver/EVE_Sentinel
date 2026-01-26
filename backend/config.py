@@ -70,6 +70,17 @@ class Settings(BaseSettings):
     # Base URL (for links in notifications)
     base_url: str | None = None
 
+    # Discord Bot
+    discord_bot_token: str | None = None  # Bot token from Discord Developer Portal
+    discord_guild_ids: str = ""  # Comma-separated guild IDs for slash commands (optional)
+    discord_admin_role_id: str | None = None  # Role ID that can use admin commands
+
+    def get_discord_guild_ids(self) -> list[int]:
+        """Parse Discord guild IDs from comma-separated string."""
+        if not self.discord_guild_ids:
+            return []
+        return [int(x.strip()) for x in self.discord_guild_ids.split(",") if x.strip()]
+
     def get_api_keys(self) -> set[str]:
         """Parse API keys from comma-separated string."""
         if not self.api_keys:

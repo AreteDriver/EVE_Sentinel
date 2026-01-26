@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+
+{% block title %}Fleet Analysis - EVE Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-people-fill me-2"></i>Fleet / Corp Analysis</h1>
+    <p class="text-muted mb-0">Bulk analyze characters from D-Scan, fleet list, or paste</p>
+</div>
+
+<div class="row g-4">
+    <!-- Input Section -->
+    <div class="col-lg-5">
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-clipboard-data me-2"></i>Input Characters
+            </div>
+            <div class="card-body">
+                <form id="fleet-form">
+                    <div class="mb-3">
+                        <label for="input-text" class="form-label">Paste Character Data</label>
+                        <textarea class="form-control" id="input-text" rows="12"
+                            placeholder="Paste one of the following:
+- Character names (one per line)
+- D-Scan results
+- Fleet window copy
+- CSV of character names"
+                            style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text); font-family: monospace; font-size: 0.85rem;"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="requested-by" class="form-label">Requested By (optional)</label>
+                        <input type="text" class="form-control" id="requested-by" placeholder="Your name"
+                            style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-outline-sentinel" onclick="previewInput()">
+                            <i class="bi bi-eye me-1"></i>Preview
+                        </button>
+                        <button type="submit" class="btn btn-sentinel">
+                            <i class="bi bi-search me-1"></i>Analyze Fleet
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Preview Section -->
+                <div id="preview-section" class="mt-3 d-none">
+                    <hr style="border-color: var(--eve-border);">
+                    <h6 style="color: var(--eve-text);">Preview (<span id="preview-count">0</span> characters)</h6>
+                    <div id="preview-list" class="small" style="max-height: 150px; overflow-y: auto;">
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tips Card -->
+        <div class="card card-sentinel mt-4">
+            <div class="card-header">
+                <i class="bi bi-lightbulb me-2"></i>Tips
+            </div>
+            <div class="card-body">
+                <ul class="mb-0 small" style="color: var(--eve-text-muted);">
+                    <li>Copy D-Scan results directly from EVE client</li>
+                    <li>Paste fleet member lists from fleet window</li>
+                    <li>Enter one character name per line</li>
+                    <li>Maximum 50 characters per analysis</li>
+                    <li>Recent reports (< 24h) are reused automatically</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="col-lg-7">
+        <div class="card card-sentinel">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-check me-2"></i>Analysis Results</span>
+                <span id="results-time" class="text-muted small"></span>
+            </div>
+            <div class="card-body">
+                <!-- Progress -->
+                <div id="progress-section" class="d-none">
+                    <div class="d-flex align-items-center mb-2">
+                        <div class="spinner-border spinner-border-sm me-2" role="status">
+                            <span class="visually-hidden">Loading...</span>
+                        </div>
+                        <span id="progress-text">Analyzing characters...</span>
+                    </div>
+                    <div class="progress" style="height: 4px;">
+                        <div id="progress-bar" class="progress-bar bg-success" role="progressbar" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- Summary Stats -->
+                <div id="summary-section" class="d-none mb-4">
+                    <div class="row g-2">
+                        <div class="col-3">
+                            <div class="text-center p-2 rounded" style="background: var(--eve-surface);">
+                                <div class="h4 mb-0" id="summary-total">0</div>
+                                <small class="text-muted">Total</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="text-center p-2 rounded" style="background: rgba(220, 53, 69, 0.1);">
+                                <div class="h4 mb-0 text-danger" id="summary-red">0</div>
+                                <small class="text-muted">Red</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="text-center p-2 rounded" style="background: rgba(255, 193, 7, 0.1);">
+                                <div class="h4 mb-0 text-warning" id="summary-yellow">0</div>
+                                <small class="text-muted">Yellow</small>
+                            </div>
+                        </div>
+                        <div class="col-3">
+                            <div class="text-center p-2 rounded" style="background: rgba(40, 167, 69, 0.1);">
+                                <div class="h4 mb-0 text-success" id="summary-green">0</div>
+                                <small class="text-muted">Green</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Table -->
+                <div id="results-section">
+                    <div class="empty-state py-5">
+                        <i class="bi bi-people" style="font-size: 3rem;"></i>
+                        <p class="mb-0 mt-2">Paste character data and click Analyze Fleet</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Form submission
+document.getElementById('fleet-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    await analyzeFleet();
+});
+
+async function previewInput() {
+    const text = document.getElementById('input-text').value.trim();
+    if (!text) {
+        alert('Please enter some character data first');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/v1/fleet/parse-preview?text=${encodeURIComponent(text)}`);
+        if (!response.ok) throw new Error('Preview failed');
+
+        const data = await response.json();
+
+        document.getElementById('preview-count').textContent = data.count;
+        document.getElementById('preview-list').innerHTML = data.characters.map(name =>
+            `<span class="badge bg-secondary me-1 mb-1">${escapeHtml(name)}</span>`
+        ).join('');
+
+        if (data.truncated) {
+            document.getElementById('preview-list').innerHTML +=
+                '<br><small class="text-muted">...and more</small>';
+        }
+
+        document.getElementById('preview-section').classList.remove('d-none');
+    } catch (error) {
+        alert('Failed to preview: ' + error.message);
+    }
+}
+
+async function analyzeFleet() {
+    const text = document.getElementById('input-text').value.trim();
+    const requestedBy = document.getElementById('requested-by').value.trim();
+
+    if (!text) {
+        alert('Please enter some character data');
+        return;
+    }
+
+    // Show progress
+    document.getElementById('progress-section').classList.remove('d-none');
+    document.getElementById('summary-section').classList.add('d-none');
+    document.getElementById('results-section').innerHTML = '';
+    document.getElementById('progress-bar').style.width = '10%';
+    document.getElementById('progress-text').textContent = 'Analyzing characters...';
+
+    try {
+        const response = await fetch('/api/v1/fleet/analyze-fleet', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                input_text: text,
+                requested_by: requestedBy || null,
+            }),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Analysis failed');
+        }
+
+        const data = await response.json();
+
+        // Hide progress
+        document.getElementById('progress-section').classList.add('d-none');
+
+        // Update summary
+        document.getElementById('summary-total').textContent = data.total_characters;
+        document.getElementById('summary-red').textContent = data.risk_summary.RED || 0;
+        document.getElementById('summary-yellow').textContent = data.risk_summary.YELLOW || 0;
+        document.getElementById('summary-green').textContent = data.risk_summary.GREEN || 0;
+        document.getElementById('summary-section').classList.remove('d-none');
+
+        // Update time
+        document.getElementById('results-time').textContent = `${(data.analysis_time_ms / 1000).toFixed(1)}s`;
+
+        // Render results
+        renderResults(data.characters);
+
+    } catch (error) {
+        document.getElementById('progress-section').classList.add('d-none');
+        document.getElementById('results-section').innerHTML = `
+            <div class="alert alert-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>${escapeHtml(error.message)}
+            </div>
+        `;
+    }
+}
+
+function renderResults(characters) {
+    if (characters.length === 0) {
+        document.getElementById('results-section').innerHTML = `
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-search"></i>
+                <p class="mb-0 mt-2">No characters analyzed</p>
+            </div>
+        `;
+        return;
+    }
+
+    const html = `
+        <div class="table-responsive">
+            <table class="table table-hover" style="color: var(--eve-text);">
+                <thead>
+                    <tr class="text-muted">
+                        <th>Character</th>
+                        <th>Corporation</th>
+                        <th>Risk</th>
+                        <th>Flags</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${characters.map(char => renderCharacterRow(char)).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    document.getElementById('results-section').innerHTML = html;
+}
+
+function renderCharacterRow(char) {
+    const riskBadge = {
+        'RED': '<span class="badge bg-danger">RED</span>',
+        'YELLOW': '<span class="badge bg-warning text-dark">YELLOW</span>',
+        'GREEN': '<span class="badge bg-success">GREEN</span>',
+        'UNKNOWN': '<span class="badge bg-secondary">UNKNOWN</span>',
+    }[char.overall_risk] || '<span class="badge bg-secondary">?</span>';
+
+    const flagText = char.error
+        ? `<span class="text-danger small">${escapeHtml(char.error)}</span>`
+        : `<span class="text-danger">${char.red_flags}</span> / <span class="text-warning">${char.yellow_flags}</span> / <span class="text-success">${char.green_flags}</span>`;
+
+    const viewBtn = char.report_id
+        ? `<a href="/reports/${char.report_id}" class="btn btn-sm btn-outline-sentinel" target="_blank">
+               <i class="bi bi-eye"></i>
+           </a>`
+        : '';
+
+    return `
+        <tr>
+            <td>
+                <strong>${escapeHtml(char.character_name)}</strong>
+                ${char.character_id ? `<br><small class="text-muted">${char.character_id}</small>` : ''}
+            </td>
+            <td>${char.corporation_name ? escapeHtml(char.corporation_name) : '<span class="text-muted">-</span>'}</td>
+            <td>${riskBadge}</td>
+            <td>${flagText}</td>
+            <td>${viewBtn}</td>
+        </tr>
+    `;
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

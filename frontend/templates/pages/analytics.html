@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}Analytics - EVE Sentinel{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-graph-up me-2"></i>Analytics Dashboard</h1>
+    <p class="text-muted mb-0">Trends, metrics, and insights</p>
+</div>
+
+<!-- Time Range Selector -->
+<div class="mb-4">
+    <div class="btn-group" role="group">
+        <button type="button" class="btn btn-outline-sentinel active" data-days="7">7 Days</button>
+        <button type="button" class="btn btn-outline-sentinel" data-days="30">30 Days</button>
+        <button type="button" class="btn btn-outline-sentinel" data-days="90">90 Days</button>
+        <button type="button" class="btn btn-outline-sentinel" data-days="365">1 Year</button>
+    </div>
+</div>
+
+<!-- Overview Stats -->
+<div class="row g-3 mb-4">
+    <div class="col-md-2">
+        <div class="card card-sentinel stat-card">
+            <div class="stat-value" id="stat-total">-</div>
+            <div class="stat-label">Total Reports</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel stat-card">
+            <div class="stat-value" id="stat-characters">-</div>
+            <div class="stat-label">Characters</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel stat-card">
+            <div class="stat-value" id="stat-today">-</div>
+            <div class="stat-label">Today</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel stat-card">
+            <div class="stat-value" id="stat-week">-</div>
+            <div class="stat-label">This Week</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel stat-card">
+            <div class="stat-value" id="stat-month">-</div>
+            <div class="stat-label">This Month</div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel stat-card">
+            <div class="stat-value" id="stat-watchlist">-</div>
+            <div class="stat-label">Watchlist</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Reports Over Time Chart -->
+    <div class="col-lg-8">
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-bar-chart me-2"></i>Reports Over Time
+            </div>
+            <div class="card-body">
+                <canvas id="reports-chart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Risk Distribution Chart -->
+    <div class="col-lg-4">
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-pie-chart me-2"></i>Risk Distribution
+            </div>
+            <div class="card-body">
+                <canvas id="risk-chart" height="300"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mt-2">
+    <!-- Top Recruiters -->
+    <div class="col-lg-4">
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-people me-2"></i>Top Recruiters
+            </div>
+            <div class="card-body">
+                <div id="recruiters-list">
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-hourglass-split"></i> Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Red Flags -->
+    <div class="col-lg-4">
+        <div class="card card-sentinel">
+            <div class="card-header text-danger">
+                <i class="bi bi-exclamation-triangle me-2"></i>Top Red Flags
+            </div>
+            <div class="card-body">
+                <div id="red-flags-list">
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-hourglass-split"></i> Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Yellow Flags -->
+    <div class="col-lg-4">
+        <div class="card card-sentinel">
+            <div class="card-header text-warning">
+                <i class="bi bi-exclamation-circle me-2"></i>Top Yellow Flags
+            </div>
+            <div class="card-body">
+                <div id="yellow-flags-list">
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-hourglass-split"></i> Loading...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let selectedDays = 30;
+let reportsChart = null;
+let riskChart = null;
+
+// Initialize on page load
+document.addEventListener('DOMContentLoaded', () => {
+    loadDashboard();
+
+    // Time range buttons
+    document.querySelectorAll('[data-days]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-days]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            selectedDays = parseInt(btn.dataset.days);
+            loadDashboard();
+        });
+    });
+});
+
+async function loadDashboard() {
+    try {
+        const response = await fetch(`/api/v1/analytics/dashboard?days=${selectedDays}`);
+        if (!response.ok) throw new Error('Failed to load analytics');
+
+        const data = await response.json();
+
+        updateOverviewStats(data.overview);
+        updateReportsChart(data.reports_over_time);
+        updateRiskChart(data.risk_distribution);
+        updateRecruitersList(data.top_recruiters);
+        updateFlagsList('red-flags-list', data.top_red_flags);
+        updateFlagsList('yellow-flags-list', data.top_yellow_flags);
+    } catch (error) {
+        console.error('Failed to load dashboard:', error);
+    }
+}
+
+function updateOverviewStats(overview) {
+    document.getElementById('stat-total').textContent = overview.total_reports.toLocaleString();
+    document.getElementById('stat-characters').textContent = overview.total_characters_analyzed.toLocaleString();
+    document.getElementById('stat-today').textContent = overview.reports_today.toLocaleString();
+    document.getElementById('stat-week').textContent = overview.reports_this_week.toLocaleString();
+    document.getElementById('stat-month').textContent = overview.reports_this_month.toLocaleString();
+    document.getElementById('stat-watchlist').textContent = overview.total_watchlist.toLocaleString();
+}
+
+function updateReportsChart(data) {
+    const ctx = document.getElementById('reports-chart').getContext('2d');
+
+    if (reportsChart) {
+        reportsChart.destroy();
+    }
+
+    reportsChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+            labels: data.map(d => d.date),
+            datasets: [
+                {
+                    label: 'Red',
+                    data: data.map(d => d.red),
+                    backgroundColor: 'rgba(220, 53, 69, 0.8)',
+                    stack: 'stack0',
+                },
+                {
+                    label: 'Yellow',
+                    data: data.map(d => d.yellow),
+                    backgroundColor: 'rgba(255, 193, 7, 0.8)',
+                    stack: 'stack0',
+                },
+                {
+                    label: 'Green',
+                    data: data.map(d => d.green),
+                    backgroundColor: 'rgba(40, 167, 69, 0.8)',
+                    stack: 'stack0',
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: { color: '#a0aec0' },
+                },
+            },
+            scales: {
+                x: {
+                    stacked: true,
+                    ticks: { color: '#a0aec0', maxTicksLimit: 10 },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                },
+                y: {
+                    stacked: true,
+                    ticks: { color: '#a0aec0' },
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                },
+            },
+        },
+    });
+}
+
+function updateRiskChart(dist) {
+    const ctx = document.getElementById('risk-chart').getContext('2d');
+
+    if (riskChart) {
+        riskChart.destroy();
+    }
+
+    riskChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Red', 'Yellow', 'Green'],
+            datasets: [{
+                data: [dist.red, dist.yellow, dist.green],
+                backgroundColor: [
+                    'rgba(220, 53, 69, 0.8)',
+                    'rgba(255, 193, 7, 0.8)',
+                    'rgba(40, 167, 69, 0.8)',
+                ],
+                borderColor: [
+                    'rgba(220, 53, 69, 1)',
+                    'rgba(255, 193, 7, 1)',
+                    'rgba(40, 167, 69, 1)',
+                ],
+                borderWidth: 1,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: { color: '#a0aec0' },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const value = context.parsed;
+                            const percent = total > 0 ? (value / total * 100).toFixed(1) : 0;
+                            return `${context.label}: ${value} (${percent}%)`;
+                        }
+                    }
+                }
+            },
+        },
+    });
+}
+
+function updateRecruitersList(recruiters) {
+    const container = document.getElementById('recruiters-list');
+
+    if (recruiters.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-people"></i>
+                <p class="mb-0 mt-2">No recruiter activity</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = recruiters.map((r, i) => `
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 ${i < recruiters.length - 1 ? 'border-bottom' : ''}" style="border-color: var(--eve-border) !important;">
+            <div>
+                <strong style="color: var(--eve-text);">${escapeHtml(r.recruiter)}</strong>
+            </div>
+            <div>
+                <span class="badge bg-secondary">${r.total_analyses} analyses</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function updateFlagsList(containerId, flags) {
+    const container = document.getElementById(containerId);
+
+    if (flags.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-muted py-3">
+                <i class="bi bi-flag"></i>
+                <p class="mb-0 mt-2">No flags in period</p>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = flags.map((f, i) => `
+        <div class="d-flex justify-content-between align-items-center mb-2 pb-2 ${i < flags.length - 1 ? 'border-bottom' : ''}" style="border-color: var(--eve-border) !important;">
+            <div>
+                <small style="color: var(--eve-text);">${escapeHtml(f.title)}</small>
+            </div>
+            <div>
+                <span class="badge ${f.severity === 'RED' ? 'bg-danger' : 'bg-warning text-dark'}">${f.count}</span>
+            </div>
+        </div>
+    `).join('');
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

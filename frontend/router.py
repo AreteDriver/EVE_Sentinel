@@ -240,6 +240,26 @@ async def watchlist_page(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/analytics", response_class=HTMLResponse)
+async def analytics_page(request: Request) -> HTMLResponse:
+    """Analytics dashboard page."""
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/analytics.html",
+        context={},
+    )
+
+
+@router.get("/fleet", response_class=HTMLResponse)
+async def fleet_analysis_page(request: Request) -> HTMLResponse:
+    """Fleet/Corp analysis page."""
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/fleet.html",
+        context={},
+    )
+
+
 @router.get("/share/{token}", response_class=HTMLResponse)
 async def shared_report_view(
     request: Request,
