@@ -322,12 +322,108 @@
     <a href="/api/v1/reports/{{ report.report_id }}/csv" class="btn btn-outline-sentinel me-2" download>
         <i class="bi bi-file-earmark-spreadsheet me-1"></i>Download CSV
     </a>
+    <button type="button" class="btn btn-outline-sentinel me-2" data-bs-toggle="modal" data-bs-target="#shareModal">
+        <i class="bi bi-share me-1"></i>Share Report
+    </button>
     <a href="/character/{{ report.character_id }}" class="btn btn-outline-sentinel me-2">
         <i class="bi bi-clock-history me-1"></i>View History
     </a>
     <a href="/reports" class="btn btn-outline-sentinel">
         <i class="bi bi-arrow-left me-1"></i>Back to Reports
     </a>
+</div>
+
+<!-- Share Modal -->
+<div class="modal fade" id="shareModal" tabindex="-1" aria-labelledby="shareModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background: var(--eve-surface); border-color: var(--eve-border);">
+            <div class="modal-header" style="border-color: var(--eve-border);">
+                <h5 class="modal-title" id="shareModalLabel" style="color: var(--eve-text);">
+                    <i class="bi bi-share me-2"></i>Share Report
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Create Share Form -->
+                <div id="create-share-section">
+                    <h6 style="color: var(--eve-text);">Create New Share Link</h6>
+                    <form id="share-form" class="mb-4">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="share-creator" class="form-label small text-muted">Your Name</label>
+                                <input type="text" class="form-control" id="share-creator" placeholder="Enter your name" required
+                                       style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="share-note" class="form-label small text-muted">Note (optional)</label>
+                                <input type="text" class="form-control" id="share-note" placeholder="e.g., For alliance CEO"
+                                       style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                            </div>
+                            <div class="col-md-6">
+                                <label for="share-expires" class="form-label small text-muted">Expires In</label>
+                                <select class="form-select" id="share-expires"
+                                        style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                                    <option value="">Never</option>
+                                    <option value="1">1 day</option>
+                                    <option value="7" selected>7 days</option>
+                                    <option value="30">30 days</option>
+                                    <option value="90">90 days</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="share-max-views" class="form-label small text-muted">Max Views</label>
+                                <select class="form-select" id="share-max-views"
+                                        style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                                    <option value="">Unlimited</option>
+                                    <option value="1">1 view</option>
+                                    <option value="5">5 views</option>
+                                    <option value="10">10 views</option>
+                                    <option value="25">25 views</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <button type="submit" class="btn btn-sentinel">
+                                <i class="bi bi-link-45deg me-1"></i>Generate Link
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Generated Link Display -->
+                <div id="share-result" class="d-none">
+                    <div class="alert alert-success d-flex align-items-center" style="background: rgba(40, 167, 69, 0.1); border-color: var(--eve-green);">
+                        <i class="bi bi-check-circle-fill me-2 text-success"></i>
+                        <div>Share link created successfully!</div>
+                    </div>
+                    <div class="input-group mb-3">
+                        <input type="text" class="form-control" id="share-url" readonly
+                               style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                        <button class="btn btn-sentinel" type="button" onclick="copyShareUrl()">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                    </div>
+                    <button type="button" class="btn btn-outline-sentinel btn-sm" onclick="resetShareForm()">
+                        <i class="bi bi-plus-lg me-1"></i>Create Another Link
+                    </button>
+                </div>
+
+                <hr style="border-color: var(--eve-border);">
+
+                <!-- Existing Shares -->
+                <div id="existing-shares">
+                    <h6 style="color: var(--eve-text);">
+                        <i class="bi bi-link-45deg me-2"></i>Existing Share Links
+                    </h6>
+                    <div id="shares-list">
+                        <div class="text-center text-muted py-3">
+                            <i class="bi bi-hourglass-split"></i> Loading...
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -460,6 +556,200 @@ function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text;
     return div.innerHTML;
+}
+
+// === Share Functionality ===
+const SHARES_API = `/api/v1/shares`;
+
+// Load existing shares when modal opens
+document.getElementById('shareModal').addEventListener('show.bs.modal', loadExistingShares);
+
+// Handle share form submission
+document.getElementById('share-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const creator = document.getElementById('share-creator').value;
+    const note = document.getElementById('share-note').value || null;
+    const expiresIn = document.getElementById('share-expires').value;
+    const maxViews = document.getElementById('share-max-views').value;
+
+    try {
+        const response = await fetch(SHARES_API, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                report_id: REPORT_ID,
+                created_by: creator,
+                note: note,
+                expires_in_days: expiresIn ? parseInt(expiresIn) : null,
+                max_views: maxViews ? parseInt(maxViews) : null
+            })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to create share link');
+        }
+
+        const share = await response.json();
+
+        // Show result
+        document.getElementById('share-url').value = share.share_url;
+        document.getElementById('create-share-section').classList.add('d-none');
+        document.getElementById('share-result').classList.remove('d-none');
+
+        // Reload shares list
+        loadExistingShares();
+    } catch (error) {
+        alert('Error creating share link: ' + error.message);
+    }
+});
+
+async function loadExistingShares() {
+    const container = document.getElementById('shares-list');
+
+    try {
+        const response = await fetch(`${SHARES_API}/report/${REPORT_ID}`);
+        if (!response.ok) throw new Error('Failed to load shares');
+
+        const shares = await response.json();
+
+        if (shares.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-link-45deg"></i>
+                    <p class="mb-0 mt-2">No share links created yet</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <div class="table-responsive">
+                <table class="table table-sm" style="color: var(--eve-text);">
+                    <thead>
+                        <tr class="text-muted">
+                            <th>Created By</th>
+                            <th>Note</th>
+                            <th>Views</th>
+                            <th>Expires</th>
+                            <th>Status</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${shares.map(share => renderShareRow(share)).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    } catch (error) {
+        container.innerHTML = `
+            <div class="text-center text-danger py-3">
+                <i class="bi bi-exclamation-triangle"></i>
+                <p class="mb-0 mt-2">Error loading shares</p>
+            </div>
+        `;
+    }
+}
+
+function renderShareRow(share) {
+    const expiresText = share.expires_at
+        ? new Date(share.expires_at).toLocaleDateString()
+        : 'Never';
+    const viewsText = share.max_views
+        ? `${share.view_count}/${share.max_views}`
+        : share.view_count;
+
+    let statusBadge;
+    if (!share.is_active) {
+        statusBadge = '<span class="badge bg-secondary">Revoked</span>';
+    } else if (share.is_expired) {
+        statusBadge = '<span class="badge bg-danger">Expired</span>';
+    } else {
+        statusBadge = '<span class="badge bg-success">Active</span>';
+    }
+
+    return `
+        <tr>
+            <td>${escapeHtml(share.created_by)}</td>
+            <td>${share.note ? escapeHtml(share.note) : '<span class="text-muted">-</span>'}</td>
+            <td>${viewsText}</td>
+            <td>${expiresText}</td>
+            <td>${statusBadge}</td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    ${share.is_active && !share.is_expired ? `
+                        <button class="btn btn-outline-secondary" onclick="copyToClipboard('${share.share_url}')" title="Copy URL">
+                            <i class="bi bi-clipboard"></i>
+                        </button>
+                        <button class="btn btn-outline-danger" onclick="revokeShare('${share.token}')" title="Revoke">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    ` : `
+                        <button class="btn btn-outline-danger" onclick="deleteShare('${share.token}')" title="Delete">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    `}
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+function copyShareUrl() {
+    const url = document.getElementById('share-url').value;
+    copyToClipboard(url);
+}
+
+function copyToClipboard(text) {
+    navigator.clipboard.writeText(text).then(() => {
+        // Show brief success feedback
+        const btn = event.currentTarget;
+        const originalIcon = btn.innerHTML;
+        btn.innerHTML = '<i class="bi bi-check"></i>';
+        setTimeout(() => btn.innerHTML = originalIcon, 1500);
+    }).catch(err => {
+        alert('Failed to copy to clipboard');
+    });
+}
+
+function resetShareForm() {
+    document.getElementById('share-result').classList.add('d-none');
+    document.getElementById('create-share-section').classList.remove('d-none');
+    document.getElementById('share-note').value = '';
+}
+
+async function revokeShare(token) {
+    if (!confirm('Revoke this share link? It will no longer be accessible.')) return;
+
+    try {
+        const response = await fetch(`${SHARES_API}/${token}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to revoke share');
+
+        loadExistingShares();
+    } catch (error) {
+        alert('Error revoking share: ' + error.message);
+    }
+}
+
+async function deleteShare(token) {
+    if (!confirm('Permanently delete this share record?')) return;
+
+    try {
+        const response = await fetch(`${SHARES_API}/${token}/permanent`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete share');
+
+        loadExistingShares();
+    } catch (error) {
+        alert('Error deleting share: ' + error.message);
+    }
 }
 </script>
 {% endblock %}

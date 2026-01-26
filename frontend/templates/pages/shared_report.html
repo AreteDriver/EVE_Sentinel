@@ -1,0 +1,226 @@
+{% extends "base.html" %}
+
+{% block title %}{{ report.character_name }} - Shared Report - EVE Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-start">
+        <div>
+            <div class="mb-2">
+                <span class="badge bg-info"><i class="bi bi-share me-1"></i>Shared Report</span>
+            </div>
+            <h1>
+                <i class="bi bi-person-circle me-2"></i>{{ report.character_name }}
+            </h1>
+            <p class="text-muted mb-0">
+                Character ID: {{ report.character_id }} |
+                Analyzed: {{ report.created_at.strftime('%Y-%m-%d %H:%M UTC') }}
+            </p>
+        </div>
+        <div class="text-end">
+            {% set risk = report.overall_risk %}
+            {% include "components/risk_badge.html" %}
+            <div class="mt-2">
+                <small class="text-muted">Confidence: {{ (report.confidence * 100)|int }}%</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-sentinel stat-card stat-red">
+            <div class="stat-value">{{ report.red_flag_count }}</div>
+            <div class="stat-label">Red Flags</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-sentinel stat-card stat-yellow">
+            <div class="stat-value">{{ report.yellow_flag_count }}</div>
+            <div class="stat-label">Yellow Flags</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-sentinel stat-card stat-green">
+            <div class="stat-value">{{ report.green_flag_count }}</div>
+            <div class="stat-label">Green Flags</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-sentinel stat-card">
+            <div class="stat-value" style="color: var(--eve-accent);">
+                {% if report.processing_time_ms %}{{ report.processing_time_ms }}ms{% else %}-{% endif %}
+            </div>
+            <div class="stat-label">Processing Time</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Left Column: Flags -->
+    <div class="col-lg-8">
+        <!-- Red Flags -->
+        {% if report.flags|selectattr("severity.value", "equalto", "RED")|list %}
+        <div class="card card-sentinel mb-4">
+            <div class="card-header text-danger">
+                <i class="bi bi-exclamation-triangle-fill me-2"></i>Red Flags
+            </div>
+            <div class="card-body">
+                {% for flag in report.flags %}
+                    {% if flag.severity.value == "RED" %}
+                        {% include "components/flag_card.html" %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Yellow Flags -->
+        {% if report.flags|selectattr("severity.value", "equalto", "YELLOW")|list %}
+        <div class="card card-sentinel mb-4">
+            <div class="card-header text-warning">
+                <i class="bi bi-exclamation-circle-fill me-2"></i>Yellow Flags
+            </div>
+            <div class="card-body">
+                {% for flag in report.flags %}
+                    {% if flag.severity.value == "YELLOW" %}
+                        {% include "components/flag_card.html" %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Green Flags -->
+        {% if report.flags|selectattr("severity.value", "equalto", "GREEN")|list %}
+        <div class="card card-sentinel mb-4">
+            <div class="card-header text-success">
+                <i class="bi bi-check-circle-fill me-2"></i>Green Flags
+            </div>
+            <div class="card-body">
+                {% for flag in report.flags %}
+                    {% if flag.severity.value == "GREEN" %}
+                        {% include "components/flag_card.html" %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- No Flags -->
+        {% if not report.flags %}
+        <div class="card card-sentinel mb-4">
+            <div class="card-body">
+                <div class="empty-state">
+                    <i class="bi bi-flag"></i>
+                    <p class="mb-0">No flags detected</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Right Column: Details -->
+    <div class="col-lg-4">
+        <!-- Recommendations -->
+        {% if report.recommendations %}
+        <div class="card card-sentinel mb-4">
+            <div class="card-header">
+                <i class="bi bi-lightbulb me-2"></i>Recommendations
+            </div>
+            <div class="card-body">
+                <ul class="list-unstyled mb-0">
+                    {% for rec in report.recommendations %}
+                    <li class="mb-2">
+                        <i class="bi bi-chevron-right text-muted me-1"></i>{{ rec }}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Playstyle -->
+        {% if report.playstyle %}
+        <div class="card card-sentinel mb-4">
+            <div class="card-header">
+                <i class="bi bi-joystick me-2"></i>Playstyle
+            </div>
+            <div class="card-body">
+                {% if report.playstyle.primary %}
+                <div class="mb-2">
+                    <strong>Primary:</strong> {{ report.playstyle.primary }}
+                </div>
+                {% endif %}
+                {% if report.playstyle.secondary %}
+                <div class="mb-2">
+                    <strong>Secondary:</strong> {{ report.playstyle.secondary }}
+                </div>
+                {% endif %}
+                {% if report.playstyle.roles %}
+                <div class="mb-2">
+                    <strong>Roles:</strong>
+                    {% for role in report.playstyle.roles %}
+                    <span class="badge bg-secondary">{{ role }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if report.playstyle.space_preference %}
+                <div class="mb-2">
+                    <strong>Space:</strong> {{ report.playstyle.space_preference }}
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Report Info -->
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-info-circle me-2"></i>Report Info
+            </div>
+            <div class="card-body">
+                <table class="table table-sm table-borderless mb-0" style="color: var(--eve-text);">
+                    <tr>
+                        <td class="text-muted">Status</td>
+                        <td>
+                            {% if report.status.value == 'completed' %}
+                            <span class="badge bg-success">Completed</span>
+                            {% elif report.status.value == 'processing' %}
+                            <span class="badge bg-info">Processing</span>
+                            {% elif report.status.value == 'failed' %}
+                            <span class="badge bg-danger">Failed</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Pending</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Created</td>
+                        <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                    </tr>
+                    {% if report.analyzers_run %}
+                    <tr>
+                        <td class="text-muted">Analyzers</td>
+                        <td>
+                            {% for analyzer in report.analyzers_run %}
+                            <span class="badge bg-secondary">{{ analyzer }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4 text-center text-muted">
+    <small>
+        <i class="bi bi-shield-check me-1"></i>
+        This report was shared via EVE Sentinel.
+        <a href="/" class="character-link">Learn more</a>
+    </small>
+</div>
+{% endblock %}

@@ -1,7 +1,18 @@
 """Database persistence layer."""
 
-from backend.database.models import AnnotationRecord, Base, ReportRecord
-from backend.database.repository import AnnotationRepository, ReportRepository
+from backend.database.models import (
+    AnnotationRecord,
+    Base,
+    ReportRecord,
+    ShareRecord,
+    WatchlistRecord,
+)
+from backend.database.repository import (
+    AnnotationRepository,
+    ReportRepository,
+    ShareRepository,
+    WatchlistRepository,
+)
 from backend.database.session import (
     close_db,
     get_session,
@@ -15,6 +26,10 @@ __all__ = [
     "Base",
     "ReportRecord",
     "ReportRepository",
+    "ShareRecord",
+    "ShareRepository",
+    "WatchlistRecord",
+    "WatchlistRepository",
     "init_db",
     "close_db",
     "get_session",

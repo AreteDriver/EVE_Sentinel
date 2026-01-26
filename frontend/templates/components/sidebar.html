@@ -20,9 +20,21 @@
                 </a>
             </li>
             <li class="nav-item">
+                <a class="nav-link {% if request.url.path == '/batch' %}active{% endif %}" href="/batch">
+                    <i class="bi bi-collection"></i>
+                    Batch Analysis
+                </a>
+            </li>
+            <li class="nav-item">
                 <a class="nav-link {% if request.url.path == '/compare' %}active{% endif %}" href="/compare">
                     <i class="bi bi-arrow-left-right"></i>
                     Compare
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.url.path == '/watchlist' %}active{% endif %}" href="/watchlist">
+                    <i class="bi bi-eye"></i>
+                    Watchlist
                 </a>
             </li>
         </ul>

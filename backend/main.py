@@ -15,6 +15,8 @@ from backend.api.analyze import router as analyze_router
 from backend.api.auth import router as auth_router
 from backend.api.ml import router as ml_router
 from backend.api.reports import router as reports_router
+from backend.api.shares import router as shares_router
+from backend.api.watchlist import router as watchlist_router
 from backend.api.webhooks import router as webhooks_router
 from backend.cache import cache
 from backend.config import settings
@@ -103,6 +105,8 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(auth_router)
 app.include_router(analyze_router)
 app.include_router(reports_router)
+app.include_router(shares_router)
+app.include_router(watchlist_router)
 app.include_router(webhooks_router)
 app.include_router(ml_router)
 app.include_router(admin_router)

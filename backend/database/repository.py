@@ -8,7 +8,9 @@ from pydantic import BaseModel
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.database.models import AnnotationRecord, ReportRecord
+import secrets
+
+from backend.database.models import AnnotationRecord, ReportRecord, ShareRecord, WatchlistRecord
 from backend.models.applicant import Applicant, Playstyle, SuspectedAlt
 from backend.models.flags import RiskFlag
 from backend.models.report import AnalysisReport, OverallRisk, ReportStatus, ReportSummary
@@ -24,6 +26,42 @@ class Annotation(BaseModel):
     annotation_type: str = "note"
     created_at: datetime
     updated_at: datetime | None = None
+
+
+class WatchlistEntry(BaseModel):
+    """Pydantic model for watchlist entry."""
+
+    id: int
+    character_id: int
+    character_name: str
+    added_by: str
+    reason: str | None = None
+    priority: str = "normal"
+    last_risk_level: str | None = None
+    last_analysis_id: str | None = None
+    last_analysis_at: datetime | None = None
+    alert_on_change: bool = True
+    alert_threshold: str = "any"
+    created_at: datetime
+    updated_at: datetime | None = None
+    needs_reanalysis: bool = False  # Computed field
+
+
+class Share(BaseModel):
+    """Pydantic model for share link."""
+
+    token: str
+    report_id: str
+    created_by: str
+    note: str | None = None
+    expires_at: datetime | None = None
+    max_views: int | None = None
+    view_count: int = 0
+    is_active: bool = True
+    created_at: datetime
+    last_viewed_at: datetime | None = None
+    is_expired: bool = False  # Computed field
+    share_url: str | None = None  # Computed field
 
 
 class ReportRepository:
@@ -485,4 +523,390 @@ class AnnotationRepository:
             annotation_type=record.annotation_type,
             created_at=record.created_at,
             updated_at=record.updated_at,
+        )
+
+
+class WatchlistRepository:
+    """
+    Async repository for watchlist management.
+
+    Handles tracking characters for monitoring over time.
+    """
+
+    # Consider a character needing reanalysis after 7 days
+    REANALYSIS_THRESHOLD_DAYS = 7
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add(
+        self,
+        character_id: int,
+        character_name: str,
+        added_by: str,
+        reason: str | None = None,
+        priority: str = "normal",
+        alert_on_change: bool = True,
+        alert_threshold: str = "any",
+    ) -> WatchlistEntry:
+        """Add a character to the watchlist."""
+        record = WatchlistRecord(
+            character_id=character_id,
+            character_name=character_name,
+            added_by=added_by,
+            reason=reason,
+            priority=priority,
+            alert_on_change=alert_on_change,
+            alert_threshold=alert_threshold,
+            created_at=datetime.now(UTC),
+        )
+        self._session.add(record)
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def get_by_id(self, watchlist_id: int) -> WatchlistEntry | None:
+        """Get watchlist entry by ID."""
+        stmt = select(WatchlistRecord).where(WatchlistRecord.id == watchlist_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+        return self._to_model(record) if record else None
+
+    async def get_by_character_id(self, character_id: int) -> WatchlistEntry | None:
+        """Get watchlist entry by character ID."""
+        stmt = select(WatchlistRecord).where(WatchlistRecord.character_id == character_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+        return self._to_model(record) if record else None
+
+    async def list_all(
+        self,
+        limit: int = 100,
+        offset: int = 0,
+        priority: str | None = None,
+    ) -> list[WatchlistEntry]:
+        """List all watchlist entries."""
+        stmt = select(WatchlistRecord).order_by(desc(WatchlistRecord.created_at))
+
+        if priority:
+            stmt = stmt.where(WatchlistRecord.priority == priority)
+
+        stmt = stmt.offset(offset).limit(limit)
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_model(r) for r in records]
+
+    async def list_needing_reanalysis(self) -> list[WatchlistEntry]:
+        """List characters that need reanalysis (no analysis in threshold days)."""
+        cutoff = datetime.now(UTC) - timedelta(days=self.REANALYSIS_THRESHOLD_DAYS)
+
+        stmt = select(WatchlistRecord).where(
+            (WatchlistRecord.last_analysis_at.is_(None))
+            | (WatchlistRecord.last_analysis_at < cutoff)
+        ).order_by(WatchlistRecord.priority.desc(), WatchlistRecord.last_analysis_at)
+
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_model(r) for r in records]
+
+    async def update(
+        self,
+        watchlist_id: int,
+        reason: str | None = None,
+        priority: str | None = None,
+        alert_on_change: bool | None = None,
+        alert_threshold: str | None = None,
+    ) -> WatchlistEntry | None:
+        """Update watchlist entry settings."""
+        stmt = select(WatchlistRecord).where(WatchlistRecord.id == watchlist_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return None
+
+        if reason is not None:
+            record.reason = reason
+        if priority is not None:
+            record.priority = priority
+        if alert_on_change is not None:
+            record.alert_on_change = alert_on_change
+        if alert_threshold is not None:
+            record.alert_threshold = alert_threshold
+        record.updated_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def update_analysis(
+        self,
+        character_id: int,
+        report_id: UUID,
+        risk_level: str,
+    ) -> WatchlistEntry | None:
+        """Update the last analysis info for a watchlist entry."""
+        stmt = select(WatchlistRecord).where(WatchlistRecord.character_id == character_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return None
+
+        record.last_analysis_id = str(report_id)
+        record.last_risk_level = risk_level
+        record.last_analysis_at = datetime.now(UTC)
+        record.updated_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def remove(self, watchlist_id: int) -> bool:
+        """Remove a character from the watchlist."""
+        stmt = select(WatchlistRecord).where(WatchlistRecord.id == watchlist_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return False
+
+        await self._session.delete(record)
+        await self._session.commit()
+        return True
+
+    async def remove_by_character_id(self, character_id: int) -> bool:
+        """Remove a character from the watchlist by character ID."""
+        stmt = select(WatchlistRecord).where(WatchlistRecord.character_id == character_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return False
+
+        await self._session.delete(record)
+        await self._session.commit()
+        return True
+
+    async def count(self, priority: str | None = None) -> int:
+        """Count watchlist entries."""
+        stmt = select(func.count(WatchlistRecord.id))
+        if priority:
+            stmt = stmt.where(WatchlistRecord.priority == priority)
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
+
+    async def is_watched(self, character_id: int) -> bool:
+        """Check if a character is on the watchlist."""
+        entry = await self.get_by_character_id(character_id)
+        return entry is not None
+
+    def _to_model(self, record: WatchlistRecord) -> WatchlistEntry:
+        """Convert record to Pydantic model."""
+        # Calculate if reanalysis needed
+        needs_reanalysis = False
+        if record.last_analysis_at is None:
+            needs_reanalysis = True
+        else:
+            cutoff = datetime.now(UTC) - timedelta(days=self.REANALYSIS_THRESHOLD_DAYS)
+            needs_reanalysis = record.last_analysis_at < cutoff
+
+        return WatchlistEntry(
+            id=record.id,
+            character_id=record.character_id,
+            character_name=record.character_name,
+            added_by=record.added_by,
+            reason=record.reason,
+            priority=record.priority,
+            last_risk_level=record.last_risk_level,
+            last_analysis_id=record.last_analysis_id,
+            last_analysis_at=record.last_analysis_at,
+            alert_on_change=bool(record.alert_on_change),
+            alert_threshold=record.alert_threshold,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+            needs_reanalysis=needs_reanalysis,
+        )
+
+
+class ShareRepository:
+    """
+    Async repository for report sharing.
+
+    Handles creating and managing shareable links for reports.
+    """
+
+    def __init__(self, session: AsyncSession, base_url: str = "") -> None:
+        self._session = session
+        self._base_url = base_url
+
+    def _generate_token(self) -> str:
+        """Generate a secure random token."""
+        return secrets.token_urlsafe(32)
+
+    async def create(
+        self,
+        report_id: UUID,
+        created_by: str,
+        note: str | None = None,
+        expires_in_days: int | None = None,
+        max_views: int | None = None,
+    ) -> Share:
+        """Create a new share link for a report."""
+        token = self._generate_token()
+
+        expires_at = None
+        if expires_in_days:
+            expires_at = datetime.now(UTC) + timedelta(days=expires_in_days)
+
+        record = ShareRecord(
+            token=token,
+            report_id=str(report_id),
+            created_by=created_by,
+            note=note,
+            expires_at=expires_at,
+            max_views=max_views,
+            view_count=0,
+            is_active=True,
+            created_at=datetime.now(UTC),
+        )
+        self._session.add(record)
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def get_by_token(self, token: str) -> Share | None:
+        """Get a share by token."""
+        stmt = select(ShareRecord).where(ShareRecord.token == token)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+        return self._to_model(record) if record else None
+
+    async def get_by_report_id(self, report_id: UUID) -> list[Share]:
+        """Get all shares for a report."""
+        stmt = (
+            select(ShareRecord)
+            .where(ShareRecord.report_id == str(report_id))
+            .order_by(desc(ShareRecord.created_at))
+        )
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_model(r) for r in records]
+
+    async def record_view(self, token: str) -> Share | None:
+        """Record a view on a share link. Returns None if share is invalid."""
+        stmt = select(ShareRecord).where(ShareRecord.token == token)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return None
+
+        # Check if still valid
+        if not record.is_active:
+            return None
+
+        if record.expires_at and datetime.now(UTC) > record.expires_at:
+            return None
+
+        if record.max_views and record.view_count >= record.max_views:
+            return None
+
+        # Increment view count
+        record.view_count += 1
+        record.last_viewed_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def revoke(self, token: str) -> bool:
+        """Revoke a share link."""
+        stmt = select(ShareRecord).where(ShareRecord.token == token)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return False
+
+        record.is_active = False
+        await self._session.commit()
+        return True
+
+    async def delete(self, token: str) -> bool:
+        """Delete a share link."""
+        stmt = select(ShareRecord).where(ShareRecord.token == token)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return False
+
+        await self._session.delete(record)
+        await self._session.commit()
+        return True
+
+    async def list_active(self, limit: int = 100) -> list[Share]:
+        """List all active share links."""
+        stmt = (
+            select(ShareRecord)
+            .where(ShareRecord.is_active == True)  # noqa: E712
+            .order_by(desc(ShareRecord.created_at))
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_model(r) for r in records]
+
+    async def cleanup_expired(self) -> int:
+        """Deactivate expired shares. Returns count of deactivated shares."""
+        now = datetime.now(UTC)
+        stmt = select(ShareRecord).where(
+            (ShareRecord.is_active == True)  # noqa: E712
+            & (
+                (ShareRecord.expires_at.isnot(None) & (ShareRecord.expires_at < now))
+                | (
+                    ShareRecord.max_views.isnot(None)
+                    & (ShareRecord.view_count >= ShareRecord.max_views)
+                )
+            )
+        )
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+
+        for record in records:
+            record.is_active = False
+
+        await self._session.commit()
+        return len(records)
+
+    def _to_model(self, record: ShareRecord) -> Share:
+        """Convert record to Pydantic model."""
+        now = datetime.now(UTC)
+
+        # Calculate if expired
+        is_expired = False
+        if not record.is_active:
+            is_expired = True
+        elif record.expires_at and now > record.expires_at:
+            is_expired = True
+        elif record.max_views and record.view_count >= record.max_views:
+            is_expired = True
+
+        # Build share URL
+        share_url = f"{self._base_url}/share/{record.token}" if self._base_url else None
+
+        return Share(
+            token=record.token,
+            report_id=record.report_id,
+            created_by=record.created_by,
+            note=record.note,
+            expires_at=record.expires_at,
+            max_views=record.max_views,
+            view_count=record.view_count,
+            is_active=bool(record.is_active),
+            created_at=record.created_at,
+            last_viewed_at=record.last_viewed_at,
+            is_expired=is_expired,
+            share_url=share_url,
         )

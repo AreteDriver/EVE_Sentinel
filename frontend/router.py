@@ -220,6 +220,63 @@ async def compare_form(
     )
 
 
+@router.get("/batch", response_class=HTMLResponse)
+async def batch_analysis_page(request: Request) -> HTMLResponse:
+    """Batch analysis page."""
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/batch.html",
+        context={},
+    )
+
+
+@router.get("/watchlist", response_class=HTMLResponse)
+async def watchlist_page(request: Request) -> HTMLResponse:
+    """Watchlist management page."""
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/watchlist.html",
+        context={},
+    )
+
+
+@router.get("/share/{token}", response_class=HTMLResponse)
+async def shared_report_view(
+    request: Request,
+    token: str,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> HTMLResponse:
+    """View a shared report (public, read-only)."""
+    from backend.database.repository import ShareRepository
+
+    base_url = str(request.base_url).rstrip("/")
+    share_repo = ShareRepository(session, base_url=base_url)
+
+    # Record view and validate share
+    share = await share_repo.record_view(token)
+
+    if not share:
+        raise HTTPException(
+            status_code=404,
+            detail="Share link not found, expired, or has reached maximum views",
+        )
+
+    # Get the report
+    repo = ReportRepository(session)
+    from uuid import UUID
+
+    report = await repo.get_by_id(UUID(share.report_id))
+
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/shared_report.html",
+        context={"report": report, "share": share},
+    )
+
+
 # --- HTMX Partial Routes ---
 
 

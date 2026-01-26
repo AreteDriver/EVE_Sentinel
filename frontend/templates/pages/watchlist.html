@@ -1,0 +1,436 @@
+{% extends "base.html" %}
+
+{% block title %}Watchlist - EVE Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-eye me-2"></i>Watchlist</h1>
+    <p class="text-muted mb-0">Monitor characters over time</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card card-sentinel stat-card">
+            <div class="stat-value" id="stat-total">-</div>
+            <div class="stat-label">Total Watched</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-sentinel stat-card stat-red">
+            <div class="stat-value" id="stat-high">-</div>
+            <div class="stat-label">High Priority</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-sentinel stat-card stat-yellow">
+            <div class="stat-value" id="stat-reanalysis">-</div>
+            <div class="stat-label">Need Reanalysis</div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card card-sentinel">
+            <div class="card-body text-center py-3">
+                <button class="btn btn-sentinel" data-bs-toggle="modal" data-bs-target="#add-modal">
+                    <i class="bi bi-plus-lg me-1"></i>Add Character
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Watchlist Table -->
+    <div class="col-lg-8">
+        <div class="card card-sentinel">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-list-ul me-2"></i>Watched Characters</span>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-sm btn-outline-secondary filter-btn active" data-filter="">All</button>
+                    <button type="button" class="btn btn-sm btn-outline-danger filter-btn" data-filter="high">High</button>
+                    <button type="button" class="btn btn-sm btn-outline-warning filter-btn" data-filter="normal">Normal</button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary filter-btn" data-filter="low">Low</button>
+                </div>
+            </div>
+            <div class="card-body p-0">
+                <div id="watchlist-table">
+                    <div class="text-center py-4 text-muted">
+                        <i class="bi bi-hourglass-split"></i> Loading watchlist...
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Needing Reanalysis -->
+    <div class="col-lg-4">
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-exclamation-circle me-2"></i>Need Reanalysis
+            </div>
+            <div class="card-body" id="reanalysis-list">
+                <div class="text-center py-3 text-muted">
+                    <i class="bi bi-hourglass-split"></i> Loading...
+                </div>
+            </div>
+        </div>
+
+        <div class="card card-sentinel mt-4">
+            <div class="card-header">
+                <i class="bi bi-lightbulb me-2"></i>Watchlist Tips
+            </div>
+            <div class="card-body">
+                <ul class="mb-0 small">
+                    <li class="mb-2">Characters not analyzed in 7+ days are flagged</li>
+                    <li class="mb-2">High priority characters appear first</li>
+                    <li class="mb-2">Click "Analyze" to run a fresh analysis</li>
+                    <li class="mb-2">Alerts notify on risk level changes</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Character Modal -->
+<div class="modal fade" id="add-modal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background: var(--eve-surface); color: var(--eve-text);">
+            <div class="modal-header" style="border-color: var(--eve-border);">
+                <h5 class="modal-title"><i class="bi bi-plus-circle me-2"></i>Add to Watchlist</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="add-form">
+                    <div class="mb-3">
+                        <label for="add-character" class="form-label">Character Name or ID</label>
+                        <input type="text" class="form-control" id="add-character" required
+                               placeholder="Enter character name or ID"
+                               style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                    </div>
+                    <div class="mb-3">
+                        <label for="add-reason" class="form-label">Reason (optional)</label>
+                        <textarea class="form-control" id="add-reason" rows="2"
+                                  placeholder="Why are you watching this character?"
+                                  style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);"></textarea>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="add-priority" class="form-label">Priority</label>
+                            <select class="form-select" id="add-priority"
+                                    style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                                <option value="high">High</option>
+                                <option value="normal" selected>Normal</option>
+                                <option value="low">Low</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="add-threshold" class="form-label">Alert Threshold</label>
+                            <select class="form-select" id="add-threshold"
+                                    style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                                <option value="any" selected>Any Change</option>
+                                <option value="yellow">Yellow or Red</option>
+                                <option value="red">Red Only</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label for="add-by" class="form-label">Added By</label>
+                        <input type="text" class="form-control" id="add-by" required
+                               placeholder="Your name"
+                               style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="border-color: var(--eve-border);">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sentinel" id="add-submit">
+                    <i class="bi bi-plus-lg me-1"></i>Add to Watchlist
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const API_BASE = '/api/v1/watchlist';
+let currentFilter = '';
+
+// Load on page ready
+document.addEventListener('DOMContentLoaded', () => {
+    loadStats();
+    loadWatchlist();
+    loadNeedingReanalysis();
+});
+
+// Filter buttons
+document.querySelectorAll('.filter-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        currentFilter = this.dataset.filter;
+        loadWatchlist();
+    });
+});
+
+// Add character form
+document.getElementById('add-submit').addEventListener('click', addCharacter);
+
+async function loadStats() {
+    try {
+        const response = await fetch(`${API_BASE}/stats`);
+        if (response.ok) {
+            const stats = await response.json();
+            document.getElementById('stat-total').textContent = stats.total;
+            document.getElementById('stat-high').textContent = stats.high_priority;
+            document.getElementById('stat-reanalysis').textContent = stats.needing_reanalysis;
+        }
+    } catch (error) {
+        console.error('Failed to load stats:', error);
+    }
+}
+
+async function loadWatchlist() {
+    const container = document.getElementById('watchlist-table');
+    const url = currentFilter ? `${API_BASE}?priority=${currentFilter}` : API_BASE;
+
+    try {
+        const response = await fetch(url);
+        if (!response.ok) throw new Error('Failed to load watchlist');
+
+        const entries = await response.json();
+
+        if (entries.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-4 text-muted">
+                    <i class="bi bi-inbox"></i>
+                    <p class="mb-0 mt-2">No characters on watchlist</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = `
+            <table class="table table-hover mb-0" style="color: var(--eve-text);">
+                <thead style="background: var(--eve-bg);">
+                    <tr>
+                        <th>Character</th>
+                        <th>Priority</th>
+                        <th>Last Risk</th>
+                        <th>Last Analysis</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${entries.map(e => renderWatchlistRow(e)).join('')}
+                </tbody>
+            </table>
+        `;
+    } catch (error) {
+        container.innerHTML = `
+            <div class="text-center py-4 text-danger">
+                <i class="bi bi-exclamation-triangle"></i>
+                <p class="mb-0 mt-2">Failed to load watchlist</p>
+            </div>
+        `;
+    }
+}
+
+function renderWatchlistRow(entry) {
+    const priorityBadges = {
+        'high': '<span class="badge bg-danger">High</span>',
+        'normal': '<span class="badge bg-warning text-dark">Normal</span>',
+        'low': '<span class="badge bg-secondary">Low</span>'
+    };
+
+    const riskBadges = {
+        'RED': '<span class="badge bg-danger">RED</span>',
+        'YELLOW': '<span class="badge bg-warning text-dark">YELLOW</span>',
+        'GREEN': '<span class="badge bg-success">GREEN</span>',
+        'null': '<span class="badge bg-secondary">-</span>'
+    };
+
+    const lastAnalysis = entry.last_analysis_at
+        ? new Date(entry.last_analysis_at).toLocaleDateString()
+        : 'Never';
+
+    const needsFlag = entry.needs_reanalysis
+        ? '<i class="bi bi-exclamation-circle text-warning ms-1" title="Needs reanalysis"></i>'
+        : '';
+
+    return `
+        <tr>
+            <td>
+                <a href="/character/${entry.character_id}" class="character-link">${escapeHtml(entry.character_name)}</a>
+                ${needsFlag}
+                ${entry.reason ? `<br><small class="text-muted">${escapeHtml(entry.reason)}</small>` : ''}
+            </td>
+            <td>${priorityBadges[entry.priority]}</td>
+            <td>${riskBadges[entry.last_risk_level || 'null']}</td>
+            <td>
+                ${lastAnalysis}
+                ${entry.last_analysis_id ? `<br><a href="/reports/${entry.last_analysis_id}" class="small">View</a>` : ''}
+            </td>
+            <td>
+                <div class="btn-group btn-group-sm">
+                    <a href="/analyze?character=${entry.character_id}" class="btn btn-outline-primary" title="Analyze">
+                        <i class="bi bi-search"></i>
+                    </a>
+                    <button class="btn btn-outline-danger" onclick="removeFromWatchlist(${entry.id})" title="Remove">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </td>
+        </tr>
+    `;
+}
+
+async function loadNeedingReanalysis() {
+    const container = document.getElementById('reanalysis-list');
+
+    try {
+        const response = await fetch(`${API_BASE}/needing-reanalysis`);
+        if (!response.ok) throw new Error('Failed to load');
+
+        const entries = await response.json();
+
+        if (entries.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-3 text-success">
+                    <i class="bi bi-check-circle"></i>
+                    <p class="mb-0 mt-2">All characters up to date</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = entries.slice(0, 10).map(e => `
+            <div class="d-flex justify-content-between align-items-center border-bottom py-2" style="border-color: var(--eve-border) !important;">
+                <div>
+                    <a href="/character/${e.character_id}" class="character-link">${escapeHtml(e.character_name)}</a>
+                    <br><small class="text-muted">${e.last_analysis_at ? 'Last: ' + new Date(e.last_analysis_at).toLocaleDateString() : 'Never analyzed'}</small>
+                </div>
+                <a href="/analyze?character=${e.character_id}" class="btn btn-sm btn-outline-primary">
+                    <i class="bi bi-search"></i>
+                </a>
+            </div>
+        `).join('');
+
+        if (entries.length > 10) {
+            container.innerHTML += `<div class="text-center pt-2 text-muted small">...and ${entries.length - 10} more</div>`;
+        }
+    } catch (error) {
+        container.innerHTML = `<div class="text-center py-3 text-danger">Failed to load</div>`;
+    }
+}
+
+async function addCharacter() {
+    const characterInput = document.getElementById('add-character').value.trim();
+    const reason = document.getElementById('add-reason').value.trim();
+    const priority = document.getElementById('add-priority').value;
+    const threshold = document.getElementById('add-threshold').value;
+    const addedBy = document.getElementById('add-by').value.trim();
+
+    if (!characterInput || !addedBy) {
+        alert('Please fill in required fields');
+        return;
+    }
+
+    const btn = document.getElementById('add-submit');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+    try {
+        // Resolve character
+        let characterId, characterName;
+
+        if (/^\d+$/.test(characterInput)) {
+            characterId = parseInt(characterInput);
+            // Fetch name from ESI
+            const esiResp = await fetch(`https://esi.evetech.net/latest/characters/${characterId}/?datasource=tranquility`);
+            if (esiResp.ok) {
+                const data = await esiResp.json();
+                characterName = data.name;
+            } else {
+                throw new Error('Character not found');
+            }
+        } else {
+            // Search by name
+            const searchResp = await fetch(`https://esi.evetech.net/latest/universe/ids/?datasource=tranquility`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify([characterInput])
+            });
+            if (searchResp.ok) {
+                const data = await searchResp.json();
+                if (data.characters && data.characters.length > 0) {
+                    characterId = data.characters[0].id;
+                    characterName = data.characters[0].name;
+                } else {
+                    throw new Error('Character not found');
+                }
+            } else {
+                throw new Error('Character search failed');
+            }
+        }
+
+        // Add to watchlist
+        const response = await fetch(API_BASE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                character_id: characterId,
+                character_name: characterName,
+                added_by: addedBy,
+                reason: reason || null,
+                priority: priority,
+                alert_on_change: true,
+                alert_threshold: threshold
+            })
+        });
+
+        if (response.status === 409) {
+            alert('Character is already on the watchlist');
+            return;
+        }
+
+        if (!response.ok) throw new Error('Failed to add character');
+
+        // Close modal and refresh
+        bootstrap.Modal.getInstance(document.getElementById('add-modal')).hide();
+        document.getElementById('add-form').reset();
+        loadStats();
+        loadWatchlist();
+        loadNeedingReanalysis();
+
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Add to Watchlist';
+    }
+}
+
+async function removeFromWatchlist(watchlistId) {
+    if (!confirm('Remove this character from the watchlist?')) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/${watchlistId}`, { method: 'DELETE' });
+        if (!response.ok) throw new Error('Failed to remove');
+
+        loadStats();
+        loadWatchlist();
+        loadNeedingReanalysis();
+    } catch (error) {
+        alert('Error: ' + error.message);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
+{% endblock %}

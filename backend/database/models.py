@@ -113,3 +113,81 @@ class AnnotationRecord(Base):
     report: Mapped["ReportRecord"] = relationship(
         "ReportRecord", back_populates="annotations"
     )
+
+
+class ShareRecord(Base):
+    """
+    Shareable link for a report.
+
+    Allows creating public read-only links for sharing reports externally.
+    """
+
+    __tablename__ = "shares"
+
+    # Primary key - the share token
+    token: Mapped[str] = mapped_column(String(64), primary_key=True)
+
+    # Foreign key to report
+    report_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("reports.report_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    # Share metadata
+    created_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Expiry and access control
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    max_views: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    view_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    # Status
+    is_active: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)  # SQLite bool
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+    last_viewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class WatchlistRecord(Base):
+    """
+    Watchlist entry for tracking characters over time.
+
+    Allows recruiters to monitor specific characters for changes.
+    """
+
+    __tablename__ = "watchlist"
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Character info
+    character_id: Mapped[int] = mapped_column(Integer, unique=True, index=True, nullable=False)
+    character_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Watchlist metadata
+    added_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")  # high, normal, low
+
+    # Last known state
+    last_risk_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    last_analysis_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    last_analysis_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Alert settings
+    alert_on_change: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)  # SQLite bool
+    alert_threshold: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="any"
+    )  # any, yellow, red
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
