@@ -15,6 +15,10 @@
 
     <!-- Character Summary -->
     <section class="summary">
+        <div class="character-portrait">
+            <img src="https://images.evetech.net/characters/{{ report.character_id }}/portrait?size=128"
+                 alt="{{ report.character_name }}" class="portrait">
+        </div>
         <div class="character-info">
             <h2>{{ report.character_name }}</h2>
             <p>Character ID: {{ report.character_id }}</p>
@@ -23,6 +27,9 @@
             {% endif %}
             {% if report.applicant_data and report.applicant_data.alliance_name %}
             <p>Alliance: {{ report.applicant_data.alliance_name }}</p>
+            {% endif %}
+            {% if report.applicant_data and report.applicant_data.character_age_days %}
+            <p>Character Age: {{ (report.applicant_data.character_age_days / 365)|round(1) }} years</p>
             {% endif %}
         </div>
         <div class="risk-assessment">
@@ -48,6 +55,57 @@
             <span class="stat-label">Green Flags</span>
         </div>
     </section>
+
+    <!-- Killboard Stats -->
+    {% if report.applicant_data and report.applicant_data.killboard %}
+    {% set kb = report.applicant_data.killboard %}
+    <section class="killboard">
+        <h3>Killboard Statistics</h3>
+        <div class="kb-stats">
+            <div class="kb-stat">
+                <span class="kb-value">{{ kb.kills_total }}</span>
+                <span class="kb-label">Total Kills</span>
+            </div>
+            <div class="kb-stat">
+                <span class="kb-value">{{ kb.kills_90d }}</span>
+                <span class="kb-label">Kills (90d)</span>
+            </div>
+            <div class="kb-stat">
+                <span class="kb-value">{{ kb.deaths_total }}</span>
+                <span class="kb-label">Deaths</span>
+            </div>
+            <div class="kb-stat">
+                <span class="kb-value">{{ kb.solo_kills }}</span>
+                <span class="kb-label">Solo Kills</span>
+            </div>
+            <div class="kb-stat">
+                <span class="kb-value">{{ "%.1f"|format(kb.isk_destroyed / 1000000000) }}B</span>
+                <span class="kb-label">ISK Destroyed</span>
+            </div>
+            {% if kb.danger_ratio %}
+            <div class="kb-stat">
+                <span class="kb-value">{{ "%.0f"|format(kb.danger_ratio * 100) }}%</span>
+                <span class="kb-label">Danger</span>
+            </div>
+            {% endif %}
+        </div>
+        {% if kb.top_ships %}
+        <div class="kb-detail">
+            <strong>Top Ships:</strong> {{ kb.top_ships[:5]|join(", ") }}
+        </div>
+        {% endif %}
+        {% if kb.top_regions %}
+        <div class="kb-detail">
+            <strong>Top Regions:</strong> {{ kb.top_regions[:3]|join(", ") }}
+        </div>
+        {% endif %}
+        {% if kb.awox_kills > 0 %}
+        <div class="kb-detail kb-warning">
+            <strong>AWOX Kills:</strong> {{ kb.awox_kills }}
+        </div>
+        {% endif %}
+    </section>
+    {% endif %}
 
     <!-- Recommendations -->
     {% if report.recommendations %}

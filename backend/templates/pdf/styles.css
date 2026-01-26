@@ -53,6 +53,22 @@ header .subtitle {
     border-radius: 8px;
 }
 
+.character-portrait {
+    flex-shrink: 0;
+    margin-right: 15px;
+}
+
+.portrait {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    border: 2px solid #e94560;
+}
+
+.character-info {
+    flex-grow: 1;
+}
+
 .character-info h2 {
     margin: 0 0 8px 0;
     font-size: 16pt;
@@ -122,6 +138,64 @@ header .subtitle {
     color: #666;
     text-transform: uppercase;
     letter-spacing: 1px;
+}
+
+/* Killboard Stats */
+.killboard {
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.killboard h3 {
+    margin: 0 0 12px 0;
+    font-size: 11pt;
+    color: #1a1a2e;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+
+.kb-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.kb-stat {
+    text-align: center;
+    padding: 8px 12px;
+    background: white;
+    border-radius: 6px;
+    border: 1px solid #e0e0e0;
+    min-width: 70px;
+}
+
+.kb-value {
+    display: block;
+    font-size: 14pt;
+    font-weight: bold;
+    color: #1a1a2e;
+}
+
+.kb-label {
+    display: block;
+    font-size: 7pt;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.kb-detail {
+    font-size: 9pt;
+    color: #555;
+    margin-top: 6px;
+}
+
+.kb-warning {
+    color: #dc3545;
+    font-weight: bold;
 }
 
 /* Recommendations */
