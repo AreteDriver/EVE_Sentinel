@@ -8,6 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
+from backend.api.admin import router as admin_router
 from backend.api.analyze import router as analyze_router
 from backend.api.ml import router as ml_router
 from backend.api.reports import router as reports_router
@@ -81,6 +82,7 @@ app.include_router(analyze_router)
 app.include_router(reports_router)
 app.include_router(webhooks_router)
 app.include_router(ml_router)
+app.include_router(admin_router)
 
 # Include frontend router (must be last to avoid path conflicts)
 app.include_router(frontend_router)

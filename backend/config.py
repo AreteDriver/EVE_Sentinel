@@ -42,6 +42,16 @@ class Settings(BaseSettings):
     auth_bridge_url: str | None = None  # e.g., "https://auth.youralliance.com"
     auth_bridge_token: str | None = None  # API token for auth system
 
+    # API Authentication
+    require_api_key: bool = False  # Set to True to require API key for all requests
+    api_keys: str = ""  # Comma-separated list of valid API keys
+
+    def get_api_keys(self) -> set[str]:
+        """Parse API keys from comma-separated string."""
+        if not self.api_keys:
+            return set()
+        return {x.strip() for x in self.api_keys.split(",") if x.strip()}
+
     def get_hostile_corp_ids(self) -> set[int]:
         """Parse hostile corp IDs from comma-separated string."""
         if not self.hostile_corps:
