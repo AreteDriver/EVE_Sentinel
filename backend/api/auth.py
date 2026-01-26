@@ -5,6 +5,8 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 
 from backend.config import settings
+from backend.connectors.esi_authenticated import AuthenticatedESIClient
+from backend.rate_limit import LIMITS, limiter
 from backend.sso import (
     DEFAULT_SCOPES,
     EVECharacter,
@@ -202,3 +204,213 @@ async def refresh_session(request: Request) -> AuthStatus:
         status_code=401,
         detail="Token refresh failed. Please log in again.",
     )
+
+
+class AuthenticatedAnalysisResult(BaseModel):
+    """Result of authenticated analysis with enriched data."""
+
+    character_id: int
+    character_name: str
+    report_id: str
+    overall_risk: str
+    confidence: float
+    red_flags: int
+    yellow_flags: int
+    green_flags: int
+    data_sources: list[str]
+    has_wallet_data: bool
+    has_asset_data: bool
+    has_standings_data: bool
+
+
+@router.post("/analyze-me", response_model=AuthenticatedAnalysisResult)
+@limiter.limit(LIMITS["analyze"])
+async def analyze_authenticated_character(request: Request) -> AuthenticatedAnalysisResult:
+    """
+    Analyze the currently authenticated character with full ESI data.
+
+    Uses the OAuth2 access token to fetch protected data:
+    - Wallet journal (recent transactions)
+    - Assets (ships, items)
+    - Contacts and standings
+
+    This provides a more comprehensive analysis than public-only data.
+    Requires the user to be logged in via EVE SSO.
+    """
+    from backend.analyzers.risk_scorer import RiskScorer
+    from backend.api.webhooks import send_report_webhook
+    from backend.connectors.esi import ESIClient
+    from backend.connectors.zkill import ZKillClient
+    from backend.database import ReportRepository, get_session
+    from backend.logging_config import get_logger
+
+    logger = get_logger(__name__)
+
+    # Get current user
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated. Please log in via EVE SSO.",
+        )
+
+    logger.info(
+        "Starting authenticated analysis for %s (%d)",
+        user.character_name,
+        user.character_id,
+    )
+
+    try:
+        # Build base applicant from public ESI data
+        esi_client = ESIClient()
+        applicant = await esi_client.build_applicant(user.character_id)
+
+        # Enrich with killboard data
+        zkill_client = ZKillClient()
+        applicant = await zkill_client.enrich_applicant(applicant)
+
+        # Enrich with authenticated ESI data
+        auth_client = AuthenticatedESIClient(user.access_token, user.character_id)
+        try:
+            applicant = await auth_client.enrich_applicant(applicant)
+        finally:
+            await auth_client.close()
+
+        # Run analysis
+        risk_scorer = RiskScorer()
+        report = await risk_scorer.analyze(
+            applicant,
+            requested_by=f"self:{user.character_name}",
+        )
+
+        # Persist the report
+        async with get_session() as session:
+            repo = ReportRepository(session)
+            await repo.save(report)
+
+        # Send webhook notification if configured
+        await send_report_webhook(report)
+
+        logger.info(
+            "Authenticated analysis complete for %s: %s",
+            user.character_name,
+            report.overall_risk.value,
+        )
+
+        return AuthenticatedAnalysisResult(
+            character_id=user.character_id,
+            character_name=user.character_name,
+            report_id=report.report_id,
+            overall_risk=report.overall_risk.value,
+            confidence=report.confidence,
+            red_flags=report.red_flag_count,
+            yellow_flags=report.yellow_flag_count,
+            green_flags=report.green_flag_count,
+            data_sources=applicant.data_sources,
+            has_wallet_data=len(applicant.wallet_journal) > 0,
+            has_asset_data=applicant.assets is not None,
+            has_standings_data=applicant.standings_data is not None,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(
+            "Authenticated analysis failed for %s: %s",
+            user.character_name,
+            str(e),
+        )
+        raise HTTPException(
+            status_code=500,
+            detail=f"Analysis failed: {str(e)}",
+        ) from e
+
+
+class WalletSummary(BaseModel):
+    """Summary of wallet data."""
+
+    balance: float
+    recent_transactions: int
+    total_received_30d: float
+    total_spent_30d: float
+
+
+class AssetsSummary(BaseModel):
+    """Summary of character assets."""
+
+    capital_ships: list[str]
+    supercapitals: list[str]
+    primary_locations: list[str]
+
+
+@router.get("/my-wallet", response_model=WalletSummary)
+@limiter.limit(LIMITS["analyze"])
+async def get_my_wallet(request: Request) -> WalletSummary:
+    """
+    Get wallet summary for the authenticated character.
+
+    Returns wallet balance and recent transaction summary.
+    Requires esi-wallet.read_character_wallet.v1 scope.
+    """
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    if "esi-wallet.read_character_wallet.v1" not in user.scopes:
+        raise HTTPException(
+            status_code=403,
+            detail="Wallet scope not granted. Please re-authenticate with wallet permissions.",
+        )
+
+    auth_client = AuthenticatedESIClient(user.access_token, user.character_id)
+    try:
+        balance = await auth_client.get_wallet_balance()
+        entries = await auth_client.build_wallet_entries(limit=100)
+
+        # Calculate 30-day totals
+        from datetime import UTC, datetime, timedelta
+
+        cutoff = datetime.now(UTC) - timedelta(days=30)
+        total_received = sum(e.amount for e in entries if e.amount > 0 and e.date >= cutoff)
+        total_spent = abs(sum(e.amount for e in entries if e.amount < 0 and e.date >= cutoff))
+
+        return WalletSummary(
+            balance=balance,
+            recent_transactions=len(entries),
+            total_received_30d=total_received,
+            total_spent_30d=total_spent,
+        )
+    finally:
+        await auth_client.close()
+
+
+@router.get("/my-assets", response_model=AssetsSummary)
+@limiter.limit(LIMITS["analyze"])
+async def get_my_assets(request: Request) -> AssetsSummary:
+    """
+    Get asset summary for the authenticated character.
+
+    Returns capital ships, supercapitals, and primary locations.
+    Requires esi-assets.read_assets.v1 scope.
+    """
+    user = await get_current_user(request)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    if "esi-assets.read_assets.v1" not in user.scopes:
+        raise HTTPException(
+            status_code=403,
+            detail="Assets scope not granted. Please re-authenticate with asset permissions.",
+        )
+
+    auth_client = AuthenticatedESIClient(user.access_token, user.character_id)
+    try:
+        summary = await auth_client.build_asset_summary()
+
+        return AssetsSummary(
+            capital_ships=summary.capital_ships,
+            supercapitals=summary.supercapitals,
+            primary_locations=summary.primary_regions,
+        )
+    finally:
+        await auth_client.close()

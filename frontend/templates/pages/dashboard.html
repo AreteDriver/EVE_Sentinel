@@ -36,7 +36,7 @@
     </div>
 </div>
 
-<!-- Quick Actions -->
+<!-- Quick Actions and Risk Distribution -->
 <div class="row g-3 mb-4">
     <div class="col-md-6">
         <div class="card card-sentinel h-100">
@@ -65,43 +65,41 @@
     <div class="col-md-6">
         <div class="card card-sentinel h-100">
             <div class="card-header">
-                <i class="bi bi-graph-up me-2"></i>Risk Distribution
+                <i class="bi bi-pie-chart me-2"></i>Risk Distribution
             </div>
-            <div class="card-body">
+            <div class="card-body d-flex align-items-center justify-content-center">
                 {% if stats.total > 0 %}
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-danger">High Risk</span>
-                        <span>{{ ((stats.red / stats.total) * 100)|round(1) }}%</span>
-                    </div>
-                    <div class="progress" style="height: 8px; background: var(--eve-bg-dark);">
-                        <div class="progress-bar bg-danger" style="width: {{ (stats.red / stats.total) * 100 }}%"></div>
-                    </div>
-                </div>
-                <div class="mb-2">
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-warning">Moderate Risk</span>
-                        <span>{{ ((stats.yellow / stats.total) * 100)|round(1) }}%</span>
-                    </div>
-                    <div class="progress" style="height: 8px; background: var(--eve-bg-dark);">
-                        <div class="progress-bar bg-warning" style="width: {{ (stats.yellow / stats.total) * 100 }}%"></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="d-flex justify-content-between mb-1">
-                        <span class="text-success">Low Risk</span>
-                        <span>{{ ((stats.green / stats.total) * 100)|round(1) }}%</span>
-                    </div>
-                    <div class="progress" style="height: 8px; background: var(--eve-bg-dark);">
-                        <div class="progress-bar bg-success" style="width: {{ (stats.green / stats.total) * 100 }}%"></div>
-                    </div>
-                </div>
+                <canvas id="riskChart" style="max-height: 200px;"></canvas>
                 {% else %}
                 <div class="empty-state py-3">
                     <i class="bi bi-pie-chart"></i>
                     <p class="mb-0">No reports yet</p>
                 </div>
                 {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-3 mb-4">
+    <div class="col-lg-8">
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-graph-up me-2"></i>Reports Over Time (Last 30 Days)
+            </div>
+            <div class="card-body">
+                <canvas id="timelineChart" style="height: 250px;"></canvas>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card card-sentinel h-100">
+            <div class="card-header">
+                <i class="bi bi-flag me-2"></i>Top Flags
+            </div>
+            <div class="card-body">
+                <canvas id="flagsChart" style="height: 250px;"></canvas>
             </div>
         </div>
     </div>
@@ -176,4 +174,184 @@
         {% endif %}
     </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // EVE-themed colors
+    const colors = {
+        red: '#dc3545',
+        yellow: '#ffc107',
+        green: '#198754',
+        gridColor: 'rgba(61, 156, 249, 0.1)',
+        textColor: '#adb5bd'
+    };
+
+    // Risk Distribution Doughnut Chart
+    {% if stats.total > 0 %}
+    const riskCtx = document.getElementById('riskChart').getContext('2d');
+    new Chart(riskCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['High Risk', 'Moderate Risk', 'Low Risk'],
+            datasets: [{
+                data: [{{ stats.red }}, {{ stats.yellow }}, {{ stats.green }}],
+                backgroundColor: [colors.red, colors.yellow, colors.green],
+                borderColor: '#1a1d23',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: colors.textColor,
+                        padding: 15,
+                        usePointStyle: true
+                    }
+                }
+            }
+        }
+    });
+    {% endif %}
+
+    // Fetch chart data from API
+    fetch('/api/v1/reports/stats/dashboard?days=30')
+        .then(response => response.json())
+        .then(data => {
+            // Timeline Chart
+            const timelineCtx = document.getElementById('timelineChart').getContext('2d');
+            const labels = data.time_series.map(d => d.date);
+
+            new Chart(timelineCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'High Risk',
+                            data: data.time_series.map(d => d.red),
+                            borderColor: colors.red,
+                            backgroundColor: colors.red + '20',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Moderate Risk',
+                            data: data.time_series.map(d => d.yellow),
+                            borderColor: colors.yellow,
+                            backgroundColor: colors.yellow + '20',
+                            fill: true,
+                            tension: 0.3
+                        },
+                        {
+                            label: 'Low Risk',
+                            data: data.time_series.map(d => d.green),
+                            borderColor: colors.green,
+                            backgroundColor: colors.green + '20',
+                            fill: true,
+                            tension: 0.3
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: colors.textColor,
+                                usePointStyle: true
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: colors.textColor },
+                            grid: { color: colors.gridColor }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: colors.textColor,
+                                stepSize: 1
+                            },
+                            grid: { color: colors.gridColor }
+                        }
+                    }
+                }
+            });
+
+            // Top Flags Chart
+            const flagsCtx = document.getElementById('flagsChart').getContext('2d');
+            const flagLabels = data.top_flags.slice(0, 7).map(f => {
+                // Truncate long labels
+                const title = f.title || f.code;
+                return title.length > 20 ? title.substring(0, 17) + '...' : title;
+            });
+            const flagCounts = data.top_flags.slice(0, 7).map(f => f.count);
+            const flagColors = data.top_flags.slice(0, 7).map(f => {
+                if (f.severity === 'red') return colors.red;
+                if (f.severity === 'yellow') return colors.yellow;
+                return colors.green;
+            });
+
+            new Chart(flagsCtx, {
+                type: 'bar',
+                data: {
+                    labels: flagLabels,
+                    datasets: [{
+                        label: 'Count',
+                        data: flagCounts,
+                        backgroundColor: flagColors,
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: {
+                                color: colors.textColor,
+                                stepSize: 1
+                            },
+                            grid: { color: colors.gridColor }
+                        },
+                        y: {
+                            ticks: {
+                                color: colors.textColor,
+                                font: { size: 11 }
+                            },
+                            grid: { display: false }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.log('Chart data not available:', error);
+            // Show empty state for timeline chart
+            document.getElementById('timelineChart').parentElement.innerHTML =
+                '<div class="empty-state py-5"><i class="bi bi-graph-up"></i><p class="mb-0">No data available</p></div>';
+            document.getElementById('flagsChart').parentElement.innerHTML =
+                '<div class="empty-state py-5"><i class="bi bi-flag"></i><p class="mb-0">No flags recorded</p></div>';
+        });
+});
+</script>
 {% endblock %}

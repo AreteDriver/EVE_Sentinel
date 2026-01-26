@@ -198,3 +198,61 @@ async def delete_report(
 
     if not deleted:
         raise HTTPException(status_code=404, detail="Report not found")
+
+
+class DashboardStats(BaseModel):
+    """Dashboard statistics response."""
+
+    total: int
+    red: int
+    yellow: int
+    green: int
+    reports_last_7_days: int
+    avg_per_day: float
+    time_series: list[dict]
+    top_flags: list[dict]
+
+
+@router.get("/stats/dashboard", response_model=DashboardStats)
+@limiter.limit(LIMITS["reports"])
+async def get_dashboard_stats(
+    request: Request,
+    days: int = Query(default=30, ge=7, le=90),
+    session: AsyncSession = Depends(get_session_dependency),
+) -> DashboardStats:
+    """
+    Get dashboard statistics for charts.
+
+    Returns:
+    - Total counts by risk level
+    - Time series data for the last N days
+    - Top flags across all reports
+    - Recent activity metrics
+    """
+    repo = ReportRepository(session)
+
+    # Get counts
+    total = await repo.count_reports()
+    red = await repo.count_reports(OverallRisk.RED)
+    yellow = await repo.count_reports(OverallRisk.YELLOW)
+    green = await repo.count_reports(OverallRisk.GREEN)
+
+    # Get time series
+    time_series = await repo.get_reports_by_date_range(days=days)
+
+    # Get top flags
+    top_flags = await repo.get_top_flags(limit=10)
+
+    # Get recent activity
+    activity = await repo.get_recent_activity(days=7)
+
+    return DashboardStats(
+        total=total,
+        red=red,
+        yellow=yellow,
+        green=green,
+        reports_last_7_days=activity["reports_last_7_days"],
+        avg_per_day=activity["avg_per_day"],
+        time_series=time_series,
+        top_flags=top_flags,
+    )
