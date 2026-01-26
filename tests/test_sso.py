@@ -1,7 +1,7 @@
 """Tests for EVE SSO authentication."""
 
 from datetime import UTC, datetime, timedelta
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -14,7 +14,6 @@ from backend.sso import (
     is_token_expiring_soon,
     parse_jwt_token,
     token_time_remaining,
-    TOKEN_REFRESH_THRESHOLD,
 )
 
 

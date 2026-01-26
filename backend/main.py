@@ -4,19 +4,19 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.api.admin import router as admin_router
-from backend.api.auth import router as auth_router
-from backend.cache import cache
 from backend.api.analyze import router as analyze_router
+from backend.api.auth import router as auth_router
 from backend.api.ml import router as ml_router
 from backend.api.reports import router as reports_router
 from backend.api.webhooks import router as webhooks_router
+from backend.cache import cache
 from backend.config import settings
 from backend.database import close_db, init_db
 from backend.logging_config import get_logger, setup_logging

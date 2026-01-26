@@ -1,7 +1,5 @@
 """Tests for rate limiting functionality."""
 
-import pytest
-from starlette.testclient import TestClient
 
 from backend.rate_limit import LIMITS, get_key_func, limiter
 
@@ -46,7 +44,6 @@ class TestRateLimitKeyFunc:
     def test_key_func_returns_api_key_when_present(self):
         """Test that key function returns API key when provided in header."""
         from starlette.requests import Request
-        from starlette.testclient import TestClient
 
         # Create a mock request with API key header
         scope = {

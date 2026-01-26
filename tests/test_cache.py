@@ -1,7 +1,8 @@
 """Tests for Redis caching layer."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from backend.cache import CACHE_TTLS, RedisCache
 

@@ -4,10 +4,8 @@ from backend.models.applicant import Applicant
 from backend.models.flags import (
     FlagCategory,
     FlagSeverity,
-    GreenFlags,
     RedFlags,
     RiskFlag,
-    YellowFlags,
 )
 
 from .base import BaseAnalyzer
@@ -103,7 +101,7 @@ class StandingsAnalyzer(BaseAnalyzer):
                     severity=FlagSeverity.YELLOW,
                     category=FlagCategory.STANDINGS,
                     code="ENEMY_FACTION_STANDING",
-                    reason=f"Positive standings with enemy faction(s)",
+                    reason="Positive standings with enemy faction(s)",
                     evidence={
                         "faction_standings": fw_issues,
                     },

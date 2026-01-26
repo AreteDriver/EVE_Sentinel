@@ -6,7 +6,6 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Request
 
 from backend.analyzers.risk_scorer import RiskScorer
-from backend.rate_limit import LIMITS, limiter
 from backend.api.webhooks import send_batch_webhook, send_report_webhook
 from backend.config import settings
 from backend.connectors.auth_bridge import AuthBridge, get_auth_bridge
@@ -21,6 +20,7 @@ from backend.models.report import (
     OverallRisk,
     ReportSummary,
 )
+from backend.rate_limit import LIMITS, limiter
 
 logger = get_logger(__name__)
 

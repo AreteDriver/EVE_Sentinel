@@ -1,8 +1,9 @@
 """Tests for authenticated ESI client."""
 
-import pytest
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
 
 from backend.connectors.esi_authenticated import AuthenticatedESIClient
 from backend.models.applicant import Applicant

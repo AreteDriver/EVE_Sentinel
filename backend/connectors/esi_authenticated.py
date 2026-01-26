@@ -1,6 +1,6 @@
 """Authenticated ESI client for fetching protected character data."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
 
 import httpx

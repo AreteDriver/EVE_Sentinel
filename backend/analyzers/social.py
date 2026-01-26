@@ -4,10 +4,8 @@ from backend.models.applicant import Applicant
 from backend.models.flags import (
     FlagCategory,
     FlagSeverity,
-    GreenFlags,
     RedFlags,
     RiskFlag,
-    YellowFlags,
 )
 
 from .base import BaseAnalyzer

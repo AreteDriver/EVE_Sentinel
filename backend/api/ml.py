@@ -4,8 +4,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.auth import generate_api_key
-from backend.config import settings
 from backend.database import get_session_dependency
 from backend.ml import RiskModel
 from backend.ml.training import train_from_database

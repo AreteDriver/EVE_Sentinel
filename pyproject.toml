@@ -66,6 +66,11 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP"]
+ignore = [
+    "E501",  # Line too long (handled by formatter)
+    "N803",  # Argument name should be lowercase (X is ML convention)
+    "N806",  # Variable should be lowercase (X, X_train are ML convention)
+]
 
 [tool.mypy]
 python_version = "3.11"

@@ -2,7 +2,7 @@
 
 import hashlib
 import secrets
-from datetime import UTC, datetime
+from datetime import datetime
 
 from fastapi import Depends, HTTPException, Security, status
 from fastapi.security import APIKeyHeader, APIKeyQuery

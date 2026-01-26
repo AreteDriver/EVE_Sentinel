@@ -1,12 +1,13 @@
 """Tests for dashboard chart data endpoints and repository methods."""
 
 import json
-import pytest
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock
 
-from backend.database.repository import ReportRepository
+import pytest
+
 from backend.api.reports import DashboardStats
+from backend.database.repository import ReportRepository
 
 
 class TestReportRepositoryChartMethods:
