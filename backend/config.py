@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     require_api_key: bool = False  # Set to True to require API key for all requests
     api_keys: str = ""  # Comma-separated list of valid API keys
 
+    # Rate Limiting
+    rate_limit_enabled: bool = True
+    rate_limit_default: str = "100/minute"
+
     def get_api_keys(self) -> set[str]:
         """Parse API keys from comma-separated string."""
         if not self.api_keys:

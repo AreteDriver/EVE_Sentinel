@@ -5,13 +5,14 @@ import zipfile
 from datetime import UTC, datetime
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import ReportRepository, get_session_dependency
 from backend.models.report import AnalysisReport, OverallRisk, ReportSummary
+from backend.rate_limit import LIMITS, limiter
 from backend.services import PDFGenerator
 
 
@@ -24,7 +25,9 @@ router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
 
 @router.get("", response_model=list[ReportSummary])
+@limiter.limit(LIMITS["reports"])
 async def list_reports(
+    request: Request,
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     risk: OverallRisk | None = Query(default=None, description="Filter by risk level"),
@@ -41,7 +44,9 @@ async def list_reports(
 
 
 @router.get("/character/{character_id}", response_model=list[AnalysisReport])
+@limiter.limit(LIMITS["reports"])
 async def get_character_reports(
+    request: Request,
     character_id: int,
     limit: int = Query(default=10, ge=1, le=100),
     session: AsyncSession = Depends(get_session_dependency),
@@ -56,7 +61,9 @@ async def get_character_reports(
 
 
 @router.get("/character/{character_id}/latest", response_model=AnalysisReport)
+@limiter.limit(LIMITS["reports"])
 async def get_character_latest_report(
+    request: Request,
     character_id: int,
     session: AsyncSession = Depends(get_session_dependency),
 ) -> AnalysisReport:
@@ -78,7 +85,9 @@ async def get_character_latest_report(
 
 
 @router.get("/{report_id}", response_model=AnalysisReport)
+@limiter.limit(LIMITS["reports"])
 async def get_report(
+    request: Request,
     report_id: UUID,
     session: AsyncSession = Depends(get_session_dependency),
 ) -> AnalysisReport:
@@ -97,7 +106,9 @@ async def get_report(
 
 
 @router.get("/{report_id}/pdf")
+@limiter.limit(LIMITS["pdf"])
 async def get_report_pdf(
+    request: Request,
     report_id: UUID,
     session: AsyncSession = Depends(get_session_dependency),
 ) -> Response:
@@ -126,8 +137,10 @@ async def get_report_pdf(
 
 
 @router.post("/bulk-pdf")
+@limiter.limit(LIMITS["bulk_pdf"])
 async def get_bulk_pdf(
-    request: BulkPDFRequest,
+    request: Request,
+    bulk_request: BulkPDFRequest,
     session: AsyncSession = Depends(get_session_dependency),
 ) -> Response:
     """
@@ -136,10 +149,10 @@ async def get_bulk_pdf(
     Takes a list of report IDs and returns a ZIP archive containing
     individual PDF files for each report.
     """
-    if not request.report_ids:
+    if not bulk_request.report_ids:
         raise HTTPException(status_code=400, detail="No report IDs provided")
 
-    if len(request.report_ids) > 50:
+    if len(bulk_request.report_ids) > 50:
         raise HTTPException(status_code=400, detail="Maximum 50 reports per request")
 
     repo = ReportRepository(session)
@@ -149,7 +162,7 @@ async def get_bulk_pdf(
     zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        for report_id in request.report_ids:
+        for report_id in bulk_request.report_ids:
             report = await repo.get_by_id(report_id)
             if report:
                 pdf_content = pdf_generator.generate(report)
@@ -169,7 +182,9 @@ async def get_bulk_pdf(
 
 
 @router.delete("/{report_id}", status_code=204)
+@limiter.limit(LIMITS["admin"])
 async def delete_report(
+    request: Request,
     report_id: UUID,
     session: AsyncSession = Depends(get_session_dependency),
 ) -> None:

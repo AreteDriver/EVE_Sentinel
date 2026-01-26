@@ -3,9 +3,10 @@
 import asyncio
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from backend.analyzers.risk_scorer import RiskScorer
+from backend.rate_limit import LIMITS, limiter
 from backend.api.webhooks import send_batch_webhook, send_report_webhook
 from backend.config import settings
 from backend.connectors.auth_bridge import AuthBridge, get_auth_bridge
@@ -89,7 +90,8 @@ async def _analyze_single_character(
 
 
 @router.post("/analyze/batch", response_model=BatchAnalysisResult)
-async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
+@limiter.limit(LIMITS["analyze_batch"])
+async def batch_analyze(request: Request, batch_request: BatchAnalysisRequest) -> BatchAnalysisResult:
     """
     Analyze multiple characters in batch.
 
@@ -97,13 +99,13 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
     Returns summary results for each character.
     """
     logger.info(
-        "Starting batch analysis for %d characters", len(request.character_ids)
+        "Starting batch analysis for %d characters", len(batch_request.character_ids)
     )
 
     # Process all characters in parallel
     tasks = [
-        _analyze_single_character(char_id, request.requested_by)
-        for char_id in request.character_ids
+        _analyze_single_character(char_id, batch_request.requested_by)
+        for char_id in batch_request.character_ids
     ]
     results = await asyncio.gather(*tasks)
 
@@ -130,7 +132,7 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
             )
 
     completed = len(full_reports)
-    failed = len(request.character_ids) - completed
+    failed = len(batch_request.character_ids) - completed
 
     logger.info("Batch analysis complete: %d succeeded, %d failed", completed, failed)
 
@@ -139,7 +141,7 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
         await send_batch_webhook(full_reports)
 
     return BatchAnalysisResult(
-        total_requested=len(request.character_ids),
+        total_requested=len(batch_request.character_ids),
         completed=completed,
         failed=failed,
         reports=reports,
@@ -147,7 +149,9 @@ async def batch_analyze(request: BatchAnalysisRequest) -> BatchAnalysisResult:
 
 
 @router.get("/analyze/by-name/{character_name}", response_model=AnalysisReport)
+@limiter.limit(LIMITS["analyze"])
 async def analyze_by_name(
+    request: Request,
     character_name: str,
     requested_by: str | None = None,
 ) -> AnalysisReport:
@@ -168,11 +172,13 @@ async def analyze_by_name(
             detail=f"Character '{character_name}' not found",
         )
 
-    return await analyze_character(char_id, requested_by)
+    return await analyze_character(request, char_id, requested_by)
 
 
 @router.post("/analyze/{character_id}", response_model=AnalysisReport)
+@limiter.limit(LIMITS["analyze"])
 async def analyze_character(
+    request: Request,
     character_id: int,
     requested_by: str | None = None,
 ) -> AnalysisReport:
@@ -235,7 +241,8 @@ async def analyze_character(
 
 
 @router.get("/quick-check/{character_id}")
-async def quick_check(character_id: int) -> dict[str, Any]:
+@limiter.limit(LIMITS["analyze"])
+async def quick_check(request: Request, character_id: int) -> dict[str, Any]:
     """
     Fast risk check - just corp history and basic killboard.
 

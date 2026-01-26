@@ -1,10 +1,11 @@
 """Admin API endpoints for EVE Sentinel."""
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from backend.auth import generate_api_key
 from backend.config import settings
+from backend.rate_limit import LIMITS, limiter
 
 router = APIRouter(prefix="/api/v1/admin", tags=["admin"])
 
@@ -24,7 +25,8 @@ class GeneratedKey(BaseModel):
 
 
 @router.get("/auth-status", response_model=AuthStatus)
-async def get_auth_status() -> AuthStatus:
+@limiter.limit(LIMITS["admin"])
+async def get_auth_status(request: Request) -> AuthStatus:
     """
     Get current authentication status.
 
@@ -37,7 +39,8 @@ async def get_auth_status() -> AuthStatus:
 
 
 @router.post("/generate-key", response_model=GeneratedKey)
-async def create_api_key() -> GeneratedKey:
+@limiter.limit(LIMITS["admin"])
+async def create_api_key(request: Request) -> GeneratedKey:
     """
     Generate a new API key.
 
@@ -62,7 +65,8 @@ async def create_api_key() -> GeneratedKey:
 
 
 @router.get("/config")
-async def get_config() -> dict:
+@limiter.limit(LIMITS["admin"])
+async def get_config(request: Request) -> dict:
     """
     Get current configuration (non-sensitive values only).
 

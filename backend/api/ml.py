@@ -1,6 +1,6 @@
 """ML model management API endpoints."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +9,7 @@ from backend.config import settings
 from backend.database import get_session_dependency
 from backend.ml import RiskModel
 from backend.ml.training import train_from_database
+from backend.rate_limit import LIMITS, limiter
 
 router = APIRouter(prefix="/api/v1/ml", tags=["ml"])
 
@@ -42,7 +43,8 @@ class TrainingRequest(BaseModel):
 
 
 @router.get("/status", response_model=ModelStatus)
-async def get_model_status() -> ModelStatus:
+@limiter.limit(LIMITS["admin"])
+async def get_model_status(request: Request) -> ModelStatus:
     """
     Get the current ML model status.
 
@@ -62,8 +64,10 @@ async def get_model_status() -> ModelStatus:
 
 
 @router.post("/train", response_model=TrainingResult)
+@limiter.limit(LIMITS["ml_train"])
 async def train_model(
-    request: TrainingRequest = TrainingRequest(),
+    request: Request,
+    training_request: TrainingRequest = TrainingRequest(),
     session: AsyncSession = Depends(get_session_dependency),
 ) -> TrainingResult:
     """
@@ -75,7 +79,7 @@ async def train_model(
     try:
         model, metrics = await train_from_database(
             session,
-            min_samples=request.min_samples,
+            min_samples=training_request.min_samples,
             save=True,
         )
 
@@ -104,7 +108,8 @@ async def train_model(
 
 
 @router.delete("/model", status_code=204)
-async def delete_model() -> None:
+@limiter.limit(LIMITS["admin"])
+async def delete_model(request: Request) -> None:
     """
     Delete the trained ML model.
 
@@ -120,7 +125,8 @@ async def delete_model() -> None:
 
 
 @router.get("/feature-importances")
-async def get_feature_importances() -> dict[str, float]:
+@limiter.limit(LIMITS["admin"])
+async def get_feature_importances(request: Request) -> dict[str, float]:
     """
     Get feature importance scores from the trained model.
 

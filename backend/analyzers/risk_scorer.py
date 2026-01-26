@@ -9,10 +9,12 @@ from backend.models.flags import RiskFlag
 from backend.models.report import AnalysisReport, OverallRisk, ReportStatus
 
 from .activity import ActivityAnalyzer
+from .assets import AssetsAnalyzer
 from .base import BaseAnalyzer
 from .corp_history import CorpHistoryAnalyzer
 from .killboard import KillboardAnalyzer
 from .ml_scorer import MLScorer
+from .social import SocialAnalyzer
 from .standings import StandingsAnalyzer
 from .wallet import WalletAnalyzer
 
@@ -35,9 +37,8 @@ class RiskScorer:
             WalletAnalyzer(),
             ActivityAnalyzer(),
             StandingsAnalyzer(),
-            # Add more analyzers as they're implemented:
-            # AssetsAnalyzer(),
-            # SocialAnalyzer(),
+            SocialAnalyzer(),
+            AssetsAnalyzer(),
         ]
 
         # Add ML scorer if a trained model is available
@@ -160,6 +161,21 @@ class RiskScorer:
         if "ENEMY_STANDINGS" in flag_codes:
             recommendations.append(
                 "Positive standings with hostile entities detected - investigate relationship"
+            )
+
+        if "HIDDEN_ALTS" in flag_codes or "HOSTILE_POSITIVE_CONTACTS" in flag_codes:
+            recommendations.append(
+                "Suspected connections to hostile entities - require full alt disclosure"
+            )
+
+        if "LARGE_ALT_NETWORK" in flag_codes:
+            recommendations.append(
+                "Large alt network detected - verify all alts are disclosed and screened"
+            )
+
+        if "UNDECLARED_ALTS" in flag_codes:
+            recommendations.append(
+                "Suspected undeclared alts - request full alt disclosure before proceeding"
             )
 
         if report.suspected_alts:

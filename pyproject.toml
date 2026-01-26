@@ -35,6 +35,7 @@ dependencies = [
     "weasyprint>=60.0",
     "scikit-learn>=1.3.0",
     "joblib>=1.3.0",
+    "slowapi>=0.1.9",
 ]
 
 [project.optional-dependencies]

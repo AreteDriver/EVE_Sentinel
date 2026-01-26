@@ -4,9 +4,10 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from slowapi.errors import RateLimitExceeded
 
 from backend.api.admin import router as admin_router
 from backend.api.analyze import router as analyze_router
@@ -16,6 +17,7 @@ from backend.api.webhooks import router as webhooks_router
 from backend.config import settings
 from backend.database import close_db, init_db
 from backend.logging_config import get_logger, setup_logging
+from backend.rate_limit import limiter, rate_limit_exceeded_handler
 from frontend import router as frontend_router
 
 # Initialize logging
@@ -63,6 +65,10 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
 )
+
+# Rate limiting
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
 # CORS middleware - configure via CORS_ORIGINS env var
 app.add_middleware(
