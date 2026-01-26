@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 from cachetools import TTLCache  # type: ignore[import-untyped]
 
+from backend.cache import cache as redis_cache
 from backend.models.applicant import Applicant, KillboardStats
 
 
@@ -44,12 +45,25 @@ class ZKillClient:
             await self._client.aclose()
             self._client = None
 
-    async def _get(self, endpoint: str) -> list[dict[str, Any]]:
-        """Make a GET request to zKillboard."""
+    async def _get(
+        self,
+        endpoint: str,
+        cache_namespace: str = "killboard",
+    ) -> list[dict[str, Any]]:
+        """Make a GET request to zKillboard with caching."""
         cache_key = endpoint
+
+        # Check Redis cache first
+        if redis_cache.is_available:
+            cached = await redis_cache.get(cache_namespace, cache_key)
+            if cached is not None:
+                return list(cached)
+
+        # Check local cache
         if cache_key in self._cache:
             return list(self._cache[cache_key])
 
+        # Fetch from zKillboard
         client = await self._get_client()
         url = f"{self.BASE_URL}{endpoint}"
 
@@ -58,7 +72,12 @@ class ZKillClient:
 
         data = response.json()
         result = list(data) if isinstance(data, list) else []
+
+        # Store in both caches
         self._cache[cache_key] = result
+        if redis_cache.is_available:
+            await redis_cache.set(cache_namespace, cache_key, result)
+
         return result
 
     async def get_character_kills(

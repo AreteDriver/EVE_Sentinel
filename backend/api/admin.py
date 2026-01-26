@@ -4,6 +4,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from backend.auth import generate_api_key
+from backend.cache import cache
 from backend.config import settings
 from backend.rate_limit import LIMITS, limiter
 
@@ -72,6 +73,7 @@ async def get_config(request: Request) -> dict:
 
     Returns configuration settings that are safe to expose.
     """
+    cache_stats = await cache.get_stats()
     return {
         "log_level": settings.log_level,
         "auth_required": settings.require_api_key,
@@ -80,4 +82,34 @@ async def get_config(request: Request) -> dict:
         "discord_webhook_configured": bool(settings.discord_webhook_url),
         "hostile_corps_count": len(settings.get_hostile_corp_ids()),
         "hostile_alliances_count": len(settings.get_hostile_alliance_ids()),
+        "redis_enabled": settings.redis_enabled,
+        "redis_connected": cache_stats.get("connected", False),
     }
+
+
+@router.get("/cache/stats")
+@limiter.limit(LIMITS["admin"])
+async def get_cache_stats(request: Request) -> dict:
+    """
+    Get cache statistics.
+
+    Returns Redis cache status and memory usage.
+    """
+    return await cache.get_stats()
+
+
+@router.delete("/cache/clear")
+@limiter.limit(LIMITS["admin"])
+async def clear_cache(request: Request, namespace: str | None = None) -> dict:
+    """
+    Clear cached data.
+
+    If namespace is provided, only clears that namespace.
+    Otherwise clears all cached data.
+    """
+    if namespace:
+        deleted = await cache.clear_namespace(namespace)
+        return {"cleared": True, "namespace": namespace, "keys_deleted": deleted}
+    else:
+        deleted = await cache.clear_all()
+        return {"cleared": True, "namespace": "all", "keys_deleted": deleted}

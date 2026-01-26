@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     # Application settings
     log_level: str = "INFO"
     cors_origins: str = "http://localhost:8000,http://127.0.0.1:8000"
+    session_secret_key: str = "change-me-in-production-use-secrets-token-hex-32"
 
     # Discord webhooks
     discord_webhook_url: str | None = None
@@ -49,6 +50,11 @@ class Settings(BaseSettings):
     # Rate Limiting
     rate_limit_enabled: bool = True
     rate_limit_default: str = "100/minute"
+
+    # Redis Caching
+    redis_enabled: bool = False  # Disabled by default, enable when Redis is available
+    redis_url: str = "redis://localhost:6379"
+    redis_prefix: str = "sentinel:"
 
     def get_api_keys(self) -> set[str]:
         """Parse API keys from comma-separated string."""

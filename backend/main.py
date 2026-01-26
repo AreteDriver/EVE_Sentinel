@@ -8,8 +8,11 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from slowapi.errors import RateLimitExceeded
+from starlette.middleware.sessions import SessionMiddleware
 
 from backend.api.admin import router as admin_router
+from backend.api.auth import router as auth_router
+from backend.cache import cache
 from backend.api.analyze import router as analyze_router
 from backend.api.ml import router as ml_router
 from backend.api.reports import router as reports_router
@@ -32,8 +35,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("EVE Sentinel starting up...")
     await init_db()
     logger.info("Database initialized")
+    await cache.connect()
     yield
     # Shutdown
+    await cache.close()
     await close_db()
     logger.info("EVE Sentinel shutting down...")
 
@@ -70,6 +75,17 @@ app = FastAPI(
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 
+# Session middleware for SSO authentication
+# In production, use a proper secret key from environment
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret_key,
+    session_cookie="sentinel_session",
+    max_age=86400,  # 24 hours
+    same_site="lax",
+    https_only=False,  # Set to True in production with HTTPS
+)
+
 # CORS middleware - configure via CORS_ORIGINS env var
 app.add_middleware(
     CORSMiddleware,
@@ -84,6 +100,7 @@ STATIC_DIR = Path(__file__).parent.parent / "frontend" / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 # Include API routers
+app.include_router(auth_router)
 app.include_router(analyze_router)
 app.include_router(reports_router)
 app.include_router(webhooks_router)

@@ -6,6 +6,7 @@ from typing import Any
 import httpx
 from cachetools import TTLCache  # type: ignore[import-untyped]
 
+from backend.cache import cache as redis_cache
 from backend.models.applicant import (
     Applicant,
     CorpHistoryEntry,
@@ -46,15 +47,30 @@ class ESIClient:
             await self._client.aclose()
             self._client = None
 
-    async def _get(self, endpoint: str) -> dict[str, Any] | list[Any]:
-        """Make a GET request to ESI."""
+    async def _get(
+        self,
+        endpoint: str,
+        cache_namespace: str = "esi",
+    ) -> dict[str, Any] | list[Any]:
+        """Make a GET request to ESI with caching."""
         cache_key = endpoint
+
+        # Check Redis cache first
+        if redis_cache.is_available:
+            cached = await redis_cache.get(cache_namespace, cache_key)
+            if cached is not None:
+                if isinstance(cached, dict):
+                    return dict(cached)
+                return list(cached)
+
+        # Check local cache
         if cache_key in self._cache:
             cached = self._cache[cache_key]
             if isinstance(cached, dict):
                 return dict(cached)
             return list(cached)
 
+        # Fetch from ESI
         client = await self._get_client()
         url = f"{self.BASE_URL}{endpoint}"
 
@@ -62,24 +78,38 @@ class ESIClient:
         response.raise_for_status()
 
         data = response.json()
+
+        # Store in both caches
         self._cache[cache_key] = data
+        if redis_cache.is_available:
+            await redis_cache.set(cache_namespace, cache_key, data)
+
         if isinstance(data, dict):
             return dict(data)
         return list(data)
 
     async def get_character(self, character_id: int) -> dict[str, Any]:
         """Get character public info."""
-        data = await self._get(f"/characters/{character_id}/")
+        data = await self._get(
+            f"/characters/{character_id}/",
+            cache_namespace="character",
+        )
         return dict(data) if isinstance(data, dict) else {}
 
     async def get_corporation(self, corporation_id: int) -> dict[str, Any]:
         """Get corporation public info."""
-        data = await self._get(f"/corporations/{corporation_id}/")
+        data = await self._get(
+            f"/corporations/{corporation_id}/",
+            cache_namespace="corporation",
+        )
         return dict(data) if isinstance(data, dict) else {}
 
     async def get_alliance(self, alliance_id: int) -> dict[str, Any]:
         """Get alliance public info."""
-        data = await self._get(f"/alliances/{alliance_id}/")
+        data = await self._get(
+            f"/alliances/{alliance_id}/",
+            cache_namespace="alliance",
+        )
         return dict(data) if isinstance(data, dict) else {}
 
     async def get_character_corp_history(
@@ -87,12 +117,18 @@ class ESIClient:
         character_id: int,
     ) -> list[dict[str, Any]]:
         """Get character corporation history."""
-        data = await self._get(f"/characters/{character_id}/corporationhistory/")
+        data = await self._get(
+            f"/characters/{character_id}/corporationhistory/",
+            cache_namespace="corp_history",
+        )
         return list(data) if isinstance(data, list) else []
 
     async def search_character(self, name: str) -> int | None:
         """Search for a character by name and return their ID."""
-        data = await self._get(f"/search/?categories=character&search={name}&strict=true")
+        data = await self._get(
+            f"/search/?categories=character&search={name}&strict=true",
+            cache_namespace="search",
+        )
         if isinstance(data, dict) and "character" in data:
             chars = data["character"]
             if chars:
