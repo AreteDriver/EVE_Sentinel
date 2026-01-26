@@ -25,8 +25,16 @@ services:
       - WEBHOOK_ON_BATCH=${WEBHOOK_ON_BATCH:-true}
       - HOSTILE_CORPS=${HOSTILE_CORPS:-}
       - HOSTILE_ALLIANCES=${HOSTILE_ALLIANCES:-}
+      # Authentication
+      - REQUIRE_API_KEY=${REQUIRE_API_KEY:-false}
+      - API_KEYS=${API_KEYS:-}
+      # Auth Bridge (Alliance Auth or SeAT)
+      - AUTH_SYSTEM=${AUTH_SYSTEM:-}
+      - AUTH_BRIDGE_URL=${AUTH_BRIDGE_URL:-}
+      - AUTH_BRIDGE_TOKEN=${AUTH_BRIDGE_TOKEN:-}
     volumes:
       - sentinel-data:/app/data
+      - sentinel-models:/app/backend/data/models
     healthcheck:
       test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health')"]
       interval: 30s
@@ -54,6 +62,7 @@ services:
 
 volumes:
   sentinel-data:
+  sentinel-models:
   # postgres-data:
 
 networks:
