@@ -157,6 +157,22 @@ async def character_history(
     )
 
 
+@router.get("/compare", response_class=HTMLResponse)
+async def compare_form(
+    request: Request,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> HTMLResponse:
+    """Character comparison form page."""
+    repo = ReportRepository(session)
+    recent_reports = await repo.list_reports(limit=20)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/compare.html",
+        context={"recent_reports": recent_reports},
+    )
+
+
 # --- HTMX Partial Routes ---
 
 

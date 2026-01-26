@@ -12,8 +12,12 @@ from backend.sso import (
     EVECharacter,
     create_oauth_client,
     get_current_user,
+    get_current_user_with_refresh,
     is_sso_configured,
+    is_token_expired,
+    is_token_expiring_soon,
     parse_jwt_token,
+    validate_token,
 )
 
 router = APIRouter(prefix="/api/v1/auth", tags=["authentication"])
@@ -30,6 +34,9 @@ class AuthStatus(BaseModel):
     character_id: int | None = None
     character_name: str | None = None
     scopes: list[str] = []
+    token_valid: bool = True
+    token_expiring_soon: bool = False
+    time_remaining: str | None = None
 
 
 class SSOConfig(BaseModel):
@@ -45,16 +52,28 @@ async def get_auth_status(request: Request) -> AuthStatus:
     """
     Get current authentication status.
 
-    Returns whether the user is authenticated and their character info.
+    Returns whether the user is authenticated, their character info,
+    and token validity status.
     """
-    user = await get_current_user(request)
+    user = await get_current_user_with_refresh(request, oauth)
+
+    if not user:
+        return AuthStatus(
+            authenticated=False,
+            sso_configured=is_sso_configured(),
+        )
+
+    token_status = await validate_token(user)
 
     return AuthStatus(
-        authenticated=user is not None,
+        authenticated=True,
         sso_configured=is_sso_configured(),
-        character_id=user.character_id if user else None,
-        character_name=user.character_name if user else None,
-        scopes=user.scopes if user else [],
+        character_id=user.character_id,
+        character_name=user.character_name,
+        scopes=user.scopes,
+        token_valid=token_status["valid"],
+        token_expiring_soon=token_status["expiring_soon"],
+        time_remaining=token_status["time_remaining"],
     )
 
 
@@ -155,9 +174,10 @@ async def get_current_character(request: Request) -> EVECharacter:
     """
     Get the currently authenticated character.
 
+    Automatically refreshes token if expiring soon.
     Returns 401 if not authenticated.
     """
-    user = await get_current_user(request)
+    user = await get_current_user_with_refresh(request, oauth)
 
     if not user:
         raise HTTPException(
@@ -168,13 +188,54 @@ async def get_current_character(request: Request) -> EVECharacter:
     return user
 
 
+class TokenStatus(BaseModel):
+    """Detailed token status response."""
+
+    valid: bool
+    expired: bool
+    expiring_soon: bool
+    expires_at: str | None = None
+    time_remaining: str | None = None
+    can_refresh: bool
+    scopes: list[str] = []
+
+
+@router.get("/token-status", response_model=TokenStatus)
+async def get_token_status(request: Request) -> TokenStatus:
+    """
+    Get detailed token status.
+
+    Returns information about the current token's validity,
+    expiration time, and whether it can be refreshed.
+    """
+    user = await get_current_user(request)
+
+    if not user:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated",
+        )
+
+    status = await validate_token(user)
+
+    return TokenStatus(
+        valid=status["valid"],
+        expired=status["expired"],
+        expiring_soon=status["expiring_soon"],
+        expires_at=status["expires_at"].isoformat() if status["expires_at"] else None,
+        time_remaining=status["time_remaining"],
+        can_refresh=status["can_refresh"],
+        scopes=user.scopes,
+    )
+
+
 @router.post("/refresh")
 async def refresh_session(request: Request) -> AuthStatus:
     """
     Refresh the current session token.
 
     Attempts to refresh the access token using the refresh token.
-    Returns updated auth status.
+    Returns updated auth status with token validity info.
     """
     from backend.sso import refresh_token_if_needed
 
@@ -190,12 +251,16 @@ async def refresh_session(request: Request) -> AuthStatus:
 
     if updated:
         request.session["user"] = updated.model_dump(mode="json")
+        token_status = await validate_token(updated)
         return AuthStatus(
             authenticated=True,
             sso_configured=True,
             character_id=updated.character_id,
             character_name=updated.character_name,
             scopes=updated.scopes,
+            token_valid=token_status["valid"],
+            token_expiring_soon=token_status["expiring_soon"],
+            time_remaining=token_status["time_remaining"],
         )
 
     # Refresh failed, clear session
@@ -236,6 +301,7 @@ async def analyze_authenticated_character(request: Request) -> AuthenticatedAnal
 
     This provides a more comprehensive analysis than public-only data.
     Requires the user to be logged in via EVE SSO.
+    Automatically refreshes token if expiring soon.
     """
     from backend.analyzers.risk_scorer import RiskScorer
     from backend.api.webhooks import send_report_webhook
@@ -246,8 +312,8 @@ async def analyze_authenticated_character(request: Request) -> AuthenticatedAnal
 
     logger = get_logger(__name__)
 
-    # Get current user
-    user = await get_current_user(request)
+    # Get current user with automatic token refresh
+    user = await get_current_user_with_refresh(request, oauth)
     if not user:
         raise HTTPException(
             status_code=401,
@@ -351,8 +417,9 @@ async def get_my_wallet(request: Request) -> WalletSummary:
 
     Returns wallet balance and recent transaction summary.
     Requires esi-wallet.read_character_wallet.v1 scope.
+    Automatically refreshes token if expiring soon.
     """
-    user = await get_current_user(request)
+    user = await get_current_user_with_refresh(request, oauth)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 
@@ -392,8 +459,9 @@ async def get_my_assets(request: Request) -> AssetsSummary:
 
     Returns capital ships, supercapitals, and primary locations.
     Requires esi-assets.read_assets.v1 scope.
+    Automatically refreshes token if expiring soon.
     """
-    user = await get_current_user(request)
+    user = await get_current_user_with_refresh(request, oauth)
     if not user:
         raise HTTPException(status_code=401, detail="Not authenticated")
 

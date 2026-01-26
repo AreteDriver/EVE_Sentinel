@@ -1,6 +1,6 @@
 """Tests for EVE SSO authentication."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -10,7 +10,11 @@ from backend.main import app
 from backend.sso import (
     EVECharacter,
     is_sso_configured,
+    is_token_expired,
+    is_token_expiring_soon,
     parse_jwt_token,
+    token_time_remaining,
+    TOKEN_REFRESH_THRESHOLD,
 )
 
 
@@ -223,3 +227,111 @@ class TestMeEndpoint:
         """Test that /me returns 401 when not authenticated."""
         response = client.get("/api/v1/auth/me")
         assert response.status_code == 401
+
+
+class TestTokenManagement:
+    """Tests for token management functions."""
+
+    @pytest.fixture
+    def valid_character(self):
+        """Create a character with valid token."""
+        return EVECharacter(
+            character_id=12345,
+            character_name="Test Pilot",
+            access_token="test_token",
+            refresh_token="refresh_token",
+            expires_at=datetime.now(UTC) + timedelta(hours=1),
+        )
+
+    @pytest.fixture
+    def expiring_character(self):
+        """Create a character with expiring token."""
+        return EVECharacter(
+            character_id=12345,
+            character_name="Test Pilot",
+            access_token="test_token",
+            refresh_token="refresh_token",
+            expires_at=datetime.now(UTC) + timedelta(minutes=3),  # Less than 5 min threshold
+        )
+
+    @pytest.fixture
+    def expired_character(self):
+        """Create a character with expired token."""
+        return EVECharacter(
+            character_id=12345,
+            character_name="Test Pilot",
+            access_token="test_token",
+            refresh_token="refresh_token",
+            expires_at=datetime.now(UTC) - timedelta(minutes=5),
+        )
+
+    def test_is_token_expired_returns_false_for_valid_token(self, valid_character):
+        """Test that valid token is not expired."""
+        assert is_token_expired(valid_character) is False
+
+    def test_is_token_expired_returns_true_for_expired_token(self, expired_character):
+        """Test that expired token is detected."""
+        assert is_token_expired(expired_character) is True
+
+    def test_is_token_expired_returns_false_when_no_expiry(self):
+        """Test that token without expiry is not considered expired."""
+        character = EVECharacter(
+            character_id=12345,
+            character_name="Test",
+            access_token="token",
+        )
+        assert is_token_expired(character) is False
+
+    def test_is_token_expiring_soon_returns_false_for_valid_token(self, valid_character):
+        """Test that valid token is not expiring soon."""
+        assert is_token_expiring_soon(valid_character) is False
+
+    def test_is_token_expiring_soon_returns_true_for_expiring_token(self, expiring_character):
+        """Test that expiring token is detected."""
+        assert is_token_expiring_soon(expiring_character) is True
+
+    def test_is_token_expiring_soon_returns_true_for_expired_token(self, expired_character):
+        """Test that expired token counts as expiring soon."""
+        assert is_token_expiring_soon(expired_character) is True
+
+    def test_token_time_remaining_returns_timedelta(self, valid_character):
+        """Test that time remaining is returned as timedelta."""
+        remaining = token_time_remaining(valid_character)
+        assert isinstance(remaining, timedelta)
+        assert remaining.total_seconds() > 0
+
+    def test_token_time_remaining_returns_zero_for_expired(self, expired_character):
+        """Test that expired token returns zero timedelta."""
+        remaining = token_time_remaining(expired_character)
+        assert remaining == timedelta(0)
+
+    def test_token_time_remaining_returns_none_when_no_expiry(self):
+        """Test that token without expiry returns None."""
+        character = EVECharacter(
+            character_id=12345,
+            character_name="Test",
+            access_token="token",
+        )
+        assert token_time_remaining(character) is None
+
+
+class TestTokenStatusEndpoint:
+    """Tests for the /auth/token-status endpoint."""
+
+    def test_token_status_returns_401_when_not_authenticated(self, client):
+        """Test that token-status returns 401 when not authenticated."""
+        response = client.get("/api/v1/auth/token-status")
+        assert response.status_code == 401
+
+
+class TestAuthStatusTokenInfo:
+    """Tests for token info in auth status response."""
+
+    def test_auth_status_includes_token_fields(self, client):
+        """Test that auth status includes token-related fields."""
+        response = client.get("/api/v1/auth/status")
+        data = response.json()
+
+        assert "token_valid" in data
+        assert "token_expiring_soon" in data
+        assert "time_remaining" in data

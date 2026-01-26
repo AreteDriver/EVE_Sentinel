@@ -1,6 +1,6 @@
 """EVE Online SSO OAuth2 authentication."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from authlib.integrations.starlette_client import OAuth
@@ -8,6 +8,12 @@ from pydantic import BaseModel
 from starlette.requests import Request
 
 from backend.config import settings
+from backend.logging_config import get_logger
+
+logger = get_logger(__name__)
+
+# Token refresh threshold - refresh if expiring within this time
+TOKEN_REFRESH_THRESHOLD = timedelta(minutes=5)
 
 
 class EVECharacter(BaseModel):
@@ -126,6 +132,28 @@ def parse_jwt_token(token: dict[str, Any]) -> EVECharacter | None:
         return None
 
 
+def is_token_expired(character: EVECharacter) -> bool:
+    """Check if the token is expired."""
+    if not character.expires_at:
+        return False  # Unknown expiry, assume valid
+    return datetime.now(UTC) >= character.expires_at
+
+
+def is_token_expiring_soon(character: EVECharacter) -> bool:
+    """Check if the token is expiring within the threshold."""
+    if not character.expires_at:
+        return False
+    return datetime.now(UTC) >= (character.expires_at - TOKEN_REFRESH_THRESHOLD)
+
+
+def token_time_remaining(character: EVECharacter) -> timedelta | None:
+    """Get time remaining until token expires."""
+    if not character.expires_at:
+        return None
+    remaining = character.expires_at - datetime.now(UTC)
+    return remaining if remaining.total_seconds() > 0 else timedelta(0)
+
+
 async def get_current_user(request: Request) -> EVECharacter | None:
     """
     Get the currently authenticated EVE character from session.
@@ -142,6 +170,39 @@ async def get_current_user(request: Request) -> EVECharacter | None:
         return None
 
 
+async def get_current_user_with_refresh(request: Request, oauth: OAuth) -> EVECharacter | None:
+    """
+    Get current user with automatic token refresh.
+
+    If the token is expiring soon, attempts to refresh it automatically
+    and updates the session with the new token.
+
+    Returns None if not authenticated or refresh failed for an expired token.
+    """
+    user = await get_current_user(request)
+    if not user:
+        return None
+
+    # Check if token needs refresh
+    if is_token_expiring_soon(user):
+        logger.debug(f"Token expiring soon for {user.character_name}, attempting refresh")
+        refreshed = await refresh_token_if_needed(oauth, user)
+
+        if refreshed:
+            # Update session with new token
+            request.session["user"] = refreshed.model_dump(mode="json")
+            logger.info(f"Token refreshed for {user.character_name}")
+            return refreshed
+        elif is_token_expired(user):
+            # Token expired and refresh failed - clear session
+            logger.warning(f"Token expired and refresh failed for {user.character_name}")
+            request.session.clear()
+            return None
+        # Refresh failed but token not yet expired - continue with current token
+
+    return user
+
+
 async def refresh_token_if_needed(
     oauth: OAuth,
     character: EVECharacter,
@@ -152,13 +213,12 @@ async def refresh_token_if_needed(
     Returns updated character or None if refresh failed.
     """
     if not character.refresh_token:
+        logger.debug(f"No refresh token for {character.character_name}")
         return None
 
-    if character.expires_at:
-        # Refresh if expires in less than 5 minutes
-        now = datetime.now(UTC)
-        if (character.expires_at - now).total_seconds() > 300:
-            return character  # Token still valid
+    # Check if refresh is needed
+    if not is_token_expiring_soon(character):
+        return character  # Token still valid
 
     try:
         eve = oauth.create_client("eve")
@@ -172,12 +232,51 @@ async def refresh_token_if_needed(
             # Preserve refresh token if not returned
             if not updated.refresh_token:
                 updated.refresh_token = character.refresh_token
+            logger.info(f"Successfully refreshed token for {character.character_name}")
             return updated
 
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error(f"Token refresh failed for {character.character_name}: {e}")
 
     return None
+
+
+async def validate_token(character: EVECharacter) -> dict[str, Any]:
+    """
+    Validate a token and return its status.
+
+    Returns a dict with:
+    - valid: bool - whether the token is currently valid
+    - expired: bool - whether the token is expired
+    - expiring_soon: bool - whether the token is expiring within threshold
+    - expires_at: datetime | None - when the token expires
+    - time_remaining: str | None - human-readable time remaining
+    - can_refresh: bool - whether the token can be refreshed
+    """
+    expired = is_token_expired(character)
+    expiring_soon = is_token_expiring_soon(character)
+    remaining = token_time_remaining(character)
+
+    time_str = None
+    if remaining:
+        total_seconds = int(remaining.total_seconds())
+        if total_seconds <= 0:
+            time_str = "expired"
+        elif total_seconds < 60:
+            time_str = f"{total_seconds}s"
+        elif total_seconds < 3600:
+            time_str = f"{total_seconds // 60}m"
+        else:
+            time_str = f"{total_seconds // 3600}h {(total_seconds % 3600) // 60}m"
+
+    return {
+        "valid": not expired,
+        "expired": expired,
+        "expiring_soon": expiring_soon,
+        "expires_at": character.expires_at,
+        "time_remaining": time_str,
+        "can_refresh": bool(character.refresh_token),
+    }
 
 
 def is_sso_configured() -> bool:

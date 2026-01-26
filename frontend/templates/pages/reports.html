@@ -11,37 +11,62 @@
 <!-- Filters -->
 <div class="card card-sentinel mb-4">
     <div class="card-body py-3">
-        <div class="d-flex align-items-center gap-3">
-            <span class="text-muted">Filter by risk:</span>
-            <div class="btn-group" role="group">
-                <a href="/reports"
-                   class="filter-btn {% if not risk_filter %}active{% endif %}"
-                   hx-get="/partials/reports-table"
-                   hx-target="#reports-container"
-                   hx-push-url="/reports">
-                    All
-                </a>
-                <a href="/reports?risk=red"
-                   class="filter-btn filter-btn-red {% if risk_filter == 'red' %}active{% endif %}"
-                   hx-get="/partials/reports-table?risk=red"
-                   hx-target="#reports-container"
-                   hx-push-url="/reports?risk=red">
-                    <i class="bi bi-exclamation-triangle-fill"></i> Red
-                </a>
-                <a href="/reports?risk=yellow"
-                   class="filter-btn filter-btn-yellow {% if risk_filter == 'yellow' %}active{% endif %}"
-                   hx-get="/partials/reports-table?risk=yellow"
-                   hx-target="#reports-container"
-                   hx-push-url="/reports?risk=yellow">
-                    <i class="bi bi-exclamation-circle-fill"></i> Yellow
-                </a>
-                <a href="/reports?risk=green"
-                   class="filter-btn filter-btn-green {% if risk_filter == 'green' %}active{% endif %}"
-                   hx-get="/partials/reports-table?risk=green"
-                   hx-target="#reports-container"
-                   hx-push-url="/reports?risk=green">
-                    <i class="bi bi-check-circle-fill"></i> Green
-                </a>
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-muted">Filter by risk:</span>
+                <div class="btn-group" role="group">
+                    <a href="/reports"
+                       class="filter-btn {% if not risk_filter %}active{% endif %}"
+                       hx-get="/partials/reports-table"
+                       hx-target="#reports-container"
+                       hx-push-url="/reports">
+                        All
+                    </a>
+                    <a href="/reports?risk=red"
+                       class="filter-btn filter-btn-red {% if risk_filter == 'red' %}active{% endif %}"
+                       hx-get="/partials/reports-table?risk=red"
+                       hx-target="#reports-container"
+                       hx-push-url="/reports?risk=red">
+                        <i class="bi bi-exclamation-triangle-fill"></i> Red
+                    </a>
+                    <a href="/reports?risk=yellow"
+                       class="filter-btn filter-btn-yellow {% if risk_filter == 'yellow' %}active{% endif %}"
+                       hx-get="/partials/reports-table?risk=yellow"
+                       hx-target="#reports-container"
+                       hx-push-url="/reports?risk=yellow">
+                        <i class="bi bi-exclamation-circle-fill"></i> Yellow
+                    </a>
+                    <a href="/reports?risk=green"
+                       class="filter-btn filter-btn-green {% if risk_filter == 'green' %}active{% endif %}"
+                       hx-get="/partials/reports-table?risk=green"
+                       hx-target="#reports-container"
+                       hx-push-url="/reports?risk=green">
+                        <i class="bi bi-check-circle-fill"></i> Green
+                    </a>
+                </div>
+            </div>
+            <div class="dropdown">
+                <button class="btn btn-outline-sentinel dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                    <i class="bi bi-download me-1"></i>Export
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                        <a class="dropdown-item" href="/api/v1/reports/export/csv{% if risk_filter %}?risk={{ risk_filter|upper }}{% endif %}&limit=100">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>Export as CSV (100)
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="/api/v1/reports/export/csv{% if risk_filter %}?risk={{ risk_filter|upper }}&{% else %}?{% endif %}limit=500">
+                            <i class="bi bi-file-earmark-spreadsheet me-2"></i>Export as CSV (500)
+                        </a>
+                    </li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <a class="dropdown-item" href="/api/v1/reports/export/csv?risk=RED&limit=100">
+                            <i class="bi bi-exclamation-triangle text-danger me-2"></i>Export Red Only
+                        </a>
+                    </li>
+                </ul>
             </div>
         </div>
     </div>
