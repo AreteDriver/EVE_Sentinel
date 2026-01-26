@@ -146,9 +146,7 @@ class FeatureExtractor:
         return np.vstack([self.extract(a) for a in applicants])
 
     @staticmethod
-    def _safe_float(
-        value: float | int | None, default: float = 0.0
-    ) -> float:
+    def _safe_float(value: float | int | None, default: float = 0.0) -> float:
         """Safely convert value to float."""
         if value is None:
             return default

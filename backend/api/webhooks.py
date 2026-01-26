@@ -98,7 +98,9 @@ async def test_webhook(request: WebhookTestRequest) -> WebhookTestResponse:
         success, error = await slack_client.test_webhook(str(request.url))
         return WebhookTestResponse(
             success=success,
-            message="Webhook test successful! Check your Slack channel." if success else "Webhook test failed.",
+            message="Webhook test successful! Check your Slack channel."
+            if success
+            else "Webhook test failed.",
             webhook_type="slack",
             error=error,
         )
@@ -106,7 +108,9 @@ async def test_webhook(request: WebhookTestRequest) -> WebhookTestResponse:
         success, error = await discord_client.test_webhook(str(request.url))
         return WebhookTestResponse(
             success=success,
-            message="Webhook test successful! Check your Discord channel." if success else "Webhook test failed.",
+            message="Webhook test successful! Check your Discord channel."
+            if success
+            else "Webhook test failed.",
             webhook_type="discord",
             error=error,
         )
@@ -263,8 +267,9 @@ async def manually_send_report_webhook(
     Allows sending a report to a specific webhook URL,
     overriding the default configuration.
     """
-    from backend.database import ReportRepository, get_session
     from uuid import UUID
+
+    from backend.database import ReportRepository, get_session
 
     async with get_session() as session:
         repo = ReportRepository(session)

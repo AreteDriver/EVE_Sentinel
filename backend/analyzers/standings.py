@@ -56,9 +56,7 @@ class StandingsAnalyzer(BaseAnalyzer):
         contacts = standings_data.get("contacts", [])
 
         # Check for positive standings with hostile entities
-        hostile_positive = self._find_hostile_positive_standings(
-            character_standings, contacts
-        )
+        hostile_positive = self._find_hostile_positive_standings(character_standings, contacts)
         if hostile_positive:
             flags.append(
                 RiskFlag(
@@ -75,9 +73,7 @@ class StandingsAnalyzer(BaseAnalyzer):
             )
 
         # Check for negative standings with allied entities
-        allied_negative = self._find_allied_negative_standings(
-            character_standings, contacts
-        )
+        allied_negative = self._find_allied_negative_standings(character_standings, contacts)
         if allied_negative:
             flags.append(
                 RiskFlag(
@@ -110,9 +106,7 @@ class StandingsAnalyzer(BaseAnalyzer):
             )
 
         # GREEN FLAG: Good standings with allies
-        ally_positive = self._find_allied_positive_standings(
-            character_standings, contacts
-        )
+        ally_positive = self._find_allied_positive_standings(character_standings, contacts)
         if len(ally_positive) >= 3 and not hostile_positive and not allied_negative:
             flags.append(
                 RiskFlag(
@@ -145,17 +139,21 @@ class StandingsAnalyzer(BaseAnalyzer):
 
             if value >= self.HOSTILE_STANDING_THRESHOLD:
                 if entity_type == "alliance" and entity_id in self.HOSTILE_ALLIANCES:
-                    hostile_positive.append({
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                        "standing": value,
-                    })
+                    hostile_positive.append(
+                        {
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "standing": value,
+                        }
+                    )
                 elif entity_type == "corporation" and entity_id in self.HOSTILE_CORPS:
-                    hostile_positive.append({
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                        "standing": value,
-                    })
+                    hostile_positive.append(
+                        {
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "standing": value,
+                        }
+                    )
 
         # Check contacts
         for contact in contacts:
@@ -165,17 +163,21 @@ class StandingsAnalyzer(BaseAnalyzer):
 
             if value >= self.HOSTILE_STANDING_THRESHOLD:
                 if entity_type == "alliance" and entity_id in self.HOSTILE_ALLIANCES:
-                    hostile_positive.append({
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                        "standing": value,
-                    })
+                    hostile_positive.append(
+                        {
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "standing": value,
+                        }
+                    )
                 elif entity_type == "corporation" and entity_id in self.HOSTILE_CORPS:
-                    hostile_positive.append({
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                        "standing": value,
-                    })
+                    hostile_positive.append(
+                        {
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "standing": value,
+                        }
+                    )
 
         return hostile_positive
 
@@ -196,17 +198,21 @@ class StandingsAnalyzer(BaseAnalyzer):
 
             if value <= self.ALLIED_NEGATIVE_THRESHOLD:
                 if entity_type == "alliance" and entity_id in self.ALLIED_ALLIANCES:
-                    allied_negative.append({
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                        "standing": value,
-                    })
+                    allied_negative.append(
+                        {
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "standing": value,
+                        }
+                    )
                 elif entity_type == "corporation" and entity_id in self.ALLIED_CORPS:
-                    allied_negative.append({
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                        "standing": value,
-                    })
+                    allied_negative.append(
+                        {
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "standing": value,
+                        }
+                    )
 
         return allied_negative
 
@@ -227,17 +233,21 @@ class StandingsAnalyzer(BaseAnalyzer):
 
             if value >= 5.0:  # Positive threshold
                 if entity_type == "alliance" and entity_id in self.ALLIED_ALLIANCES:
-                    allied_positive.append({
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                        "standing": value,
-                    })
+                    allied_positive.append(
+                        {
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "standing": value,
+                        }
+                    )
                 elif entity_type == "corporation" and entity_id in self.ALLIED_CORPS:
-                    allied_positive.append({
-                        "entity_id": entity_id,
-                        "entity_type": entity_type,
-                        "standing": value,
-                    })
+                    allied_positive.append(
+                        {
+                            "entity_id": entity_id,
+                            "entity_type": entity_type,
+                            "standing": value,
+                        }
+                    )
 
         return allied_positive
 
@@ -252,10 +262,12 @@ class StandingsAnalyzer(BaseAnalyzer):
 
             if entity_type == "faction" and entity_id in self.ENEMY_FACTIONS:
                 if value >= 1.0:  # Any positive standing with enemy faction
-                    fw_issues.append({
-                        "faction_id": entity_id,
-                        "standing": value,
-                    })
+                    fw_issues.append(
+                        {
+                            "faction_id": entity_id,
+                            "standing": value,
+                        }
+                    )
 
         return fw_issues
 

@@ -12,9 +12,7 @@ def setup_logging(level: str = "INFO") -> None:
     Args:
         level: Log level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
     """
-    log_format = (
-        "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s"
-    )
+    log_format = "%(asctime)s | %(levelname)-8s | %(name)s:%(lineno)d | %(message)s"
 
     logging.basicConfig(
         level=getattr(logging, level.upper(), logging.INFO),

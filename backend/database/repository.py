@@ -163,9 +163,7 @@ class ReportRepository:
 
         # Character name search (case-insensitive)
         if query:
-            stmt = stmt.where(
-                ReportRecord.character_name.ilike(f"%{query}%")
-            )
+            stmt = stmt.where(ReportRecord.character_name.ilike(f"%{query}%"))
 
         # Risk level filter
         if risk_filter:
@@ -173,9 +171,7 @@ class ReportRepository:
 
         # Flag code filter (search in JSON)
         if flag_code:
-            stmt = stmt.where(
-                ReportRecord.flags_json.contains(f'"code": "{flag_code}"')
-            )
+            stmt = stmt.where(ReportRecord.flags_json.contains(f'"code": "{flag_code}"'))
 
         # Date range filters
         if date_from:
@@ -201,17 +197,13 @@ class ReportRepository:
         stmt = select(func.count(ReportRecord.report_id))
 
         if query:
-            stmt = stmt.where(
-                ReportRecord.character_name.ilike(f"%{query}%")
-            )
+            stmt = stmt.where(ReportRecord.character_name.ilike(f"%{query}%"))
 
         if risk_filter:
             stmt = stmt.where(ReportRecord.overall_risk == risk_filter.value)
 
         if flag_code:
-            stmt = stmt.where(
-                ReportRecord.flags_json.contains(f'"code": "{flag_code}"')
-            )
+            stmt = stmt.where(ReportRecord.flags_json.contains(f'"code": "{flag_code}"'))
 
         if date_from:
             stmt = stmt.where(ReportRecord.created_at >= date_from)
@@ -223,9 +215,7 @@ class ReportRepository:
 
     async def get_all_flag_codes(self) -> list[str]:
         """Get all unique flag codes from reports."""
-        stmt = select(ReportRecord.flags_json).where(
-            ReportRecord.flags_json.isnot(None)
-        )
+        stmt = select(ReportRecord.flags_json).where(ReportRecord.flags_json.isnot(None))
         result = await self._session.execute(stmt)
         rows = result.all()
 
@@ -282,10 +272,7 @@ class ReportRepository:
             date_counts[date_str]["total"] += 1
 
         # Convert to list sorted by date
-        return [
-            {"date": date, **counts}
-            for date, counts in sorted(date_counts.items())
-        ]
+        return [{"date": date, **counts} for date, counts in sorted(date_counts.items())]
 
     async def get_top_flags(self, limit: int = 10) -> list[dict]:
         """
@@ -294,9 +281,7 @@ class ReportRepository:
         Returns a list of dicts with flag code and count.
         """
         # Get all reports with flags
-        stmt = select(ReportRecord.flags_json).where(
-            ReportRecord.flags_json.isnot(None)
-        )
+        stmt = select(ReportRecord.flags_json).where(ReportRecord.flags_json.isnot(None))
         result = await self._session.execute(stmt)
         rows = result.all()
 
@@ -327,9 +312,7 @@ class ReportRepository:
         Returns count of reports analyzed per day.
         """
         cutoff = datetime.now(UTC) - timedelta(days=days)
-        stmt = select(func.count(ReportRecord.report_id)).where(
-            ReportRecord.created_at >= cutoff
-        )
+        stmt = select(func.count(ReportRecord.report_id)).where(ReportRecord.created_at >= cutoff)
         result = await self._session.execute(stmt)
         recent_count = result.scalar() or 0
 

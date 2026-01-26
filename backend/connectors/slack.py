@@ -351,7 +351,9 @@ class SlackWebhook:
 
         payload = {
             "blocks": blocks,
-            "attachments": [{"color": color, "fallback": f"Batch analysis: {len(reports)} reports"}],
+            "attachments": [
+                {"color": color, "fallback": f"Batch analysis: {len(reports)} reports"}
+            ],
         }
 
         return await self._send_with_retry(url, payload)

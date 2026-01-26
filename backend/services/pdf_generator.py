@@ -4,7 +4,7 @@ from io import BytesIO
 from pathlib import Path
 
 from jinja2 import Environment, FileSystemLoader
-from weasyprint import CSS, HTML
+from weasyprint import CSS, HTML  # type: ignore[import-untyped]
 
 from backend.models.report import AnalysisReport
 
@@ -60,8 +60,6 @@ class PDFGenerator:
 
     def generate_filename(self, report: AnalysisReport) -> str:
         """Generate a filename for the PDF report."""
-        safe_name = "".join(
-            c if c.isalnum() or c in "-_" else "_" for c in report.character_name
-        )
+        safe_name = "".join(c if c.isalnum() or c in "-_" else "_" for c in report.character_name)
         date_str = report.created_at.strftime("%Y%m%d")
         return f"sentinel_report_{safe_name}_{date_str}.pdf"

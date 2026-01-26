@@ -40,7 +40,9 @@ def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSO
         content={
             "detail": "Rate limit exceeded",
             "message": str(exc.detail),
-            "retry_after": exc.detail.split("per")[1].strip() if "per" in exc.detail else "60 seconds",
+            "retry_after": exc.detail.split("per")[1].strip()
+            if "per" in exc.detail
+            else "60 seconds",
         },
     )
 

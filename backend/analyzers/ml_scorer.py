@@ -66,9 +66,7 @@ class MLScorer(BaseAnalyzer):
             # If ML prediction fails, don't block the analysis
             return []
 
-    def _create_flag(
-        self, prediction: OverallRisk, confidence: float
-    ) -> RiskFlag:
+    def _create_flag(self, prediction: OverallRisk, confidence: float) -> RiskFlag:
         """Create a risk flag from the ML prediction."""
         severity_map = {
             OverallRisk.RED: FlagSeverity.RED,

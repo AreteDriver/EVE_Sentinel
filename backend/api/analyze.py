@@ -91,16 +91,16 @@ async def _analyze_single_character(
 
 @router.post("/analyze/batch", response_model=BatchAnalysisResult)
 @limiter.limit(LIMITS["analyze_batch"])
-async def batch_analyze(request: Request, batch_request: BatchAnalysisRequest) -> BatchAnalysisResult:
+async def batch_analyze(
+    request: Request, batch_request: BatchAnalysisRequest
+) -> BatchAnalysisResult:
     """
     Analyze multiple characters in batch.
 
     Useful for screening entire application queues.
     Returns summary results for each character.
     """
-    logger.info(
-        "Starting batch analysis for %d characters", len(batch_request.character_ids)
-    )
+    logger.info("Starting batch analysis for %d characters", len(batch_request.character_ids))
 
     # Process all characters in parallel
     tasks = [
@@ -268,9 +268,7 @@ async def quick_check(request: Request, character_id: int) -> dict[str, Any]:
         # Run analysis
         report = await risk_scorer.analyze(applicant)
 
-        logger.debug(
-            "Quick check complete for %d: %s", character_id, report.overall_risk.value
-        )
+        logger.debug("Quick check complete for %d: %s", character_id, report.overall_risk.value)
 
         return {
             "character_id": character_id,

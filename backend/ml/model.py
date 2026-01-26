@@ -3,9 +3,9 @@
 from pathlib import Path
 from typing import Any
 
-import joblib
+import joblib  # type: ignore[import-untyped]
 import numpy as np
-from sklearn.ensemble import GradientBoostingClassifier
+from sklearn.ensemble import GradientBoostingClassifier  # type: ignore[import-untyped]
 
 from backend.models.report import OverallRisk
 
@@ -132,9 +132,7 @@ class RiskModel:
 
         return self.model.predict_proba(X)
 
-    def predict_with_confidence(
-        self, X: np.ndarray
-    ) -> list[tuple[OverallRisk, float]]:
+    def predict_with_confidence(self, X: np.ndarray) -> list[tuple[OverallRisk, float]]:
         """
         Predict risk levels with confidence scores.
 

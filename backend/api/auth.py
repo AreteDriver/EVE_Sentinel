@@ -364,7 +364,7 @@ async def analyze_authenticated_character(request: Request) -> AuthenticatedAnal
         return AuthenticatedAnalysisResult(
             character_id=user.character_id,
             character_name=user.character_name,
-            report_id=report.report_id,
+            report_id=str(report.report_id),
             overall_risk=report.overall_risk.value,
             confidence=report.confidence,
             red_flags=report.red_flag_count,

@@ -69,14 +69,10 @@ class AllianceAuthAdapter(AuthBridge):
             return list(data)
 
         except httpx.ConnectError as e:
-            raise AuthBridgeConnectionError(
-                f"Failed to connect to Alliance Auth: {e}"
-            ) from e
+            raise AuthBridgeConnectionError(f"Failed to connect to Alliance Auth: {e}") from e
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise AuthBridgeNotFoundError(
-                    f"Resource not found: {endpoint}"
-                ) from e
+                raise AuthBridgeNotFoundError(f"Resource not found: {endpoint}") from e
             raise AuthBridgeConnectionError(
                 f"Alliance Auth request failed: {e.response.status_code}"
             ) from e

@@ -69,12 +69,12 @@ class AuthenticatedESIClient:
         22852,  # Hel
         23913,  # Nyx
         42241,  # Vendetta
-        3514,   # Revenant
+        3514,  # Revenant
         # Titans
         11567,  # Avatar
-        3764,   # Leviathan
+        3764,  # Leviathan
         23773,  # Ragnarok
-        671,    # Erebus
+        671,  # Erebus
         42126,  # Vanquisher
         45649,  # Komodo
         42243,  # Molok
@@ -358,7 +358,9 @@ class AuthenticatedESIClient:
             # Add wallet data
             wallet_entries = await self.build_wallet_entries(limit=200)
             applicant.wallet_journal = wallet_entries
-            logger.info(f"Added {len(wallet_entries)} wallet entries for {applicant.character_name}")
+            logger.info(
+                f"Added {len(wallet_entries)} wallet entries for {applicant.character_name}"
+            )
         except Exception as e:
             logger.debug(f"Failed to fetch wallet data: {e}")
 

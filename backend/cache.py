@@ -63,7 +63,7 @@ class RedisCache:
                 decode_responses=True,
             )
             # Test connection
-            await self._client.ping()
+            await self._client.ping()  # type: ignore[misc]
             logger.info(f"Connected to Redis at {self._url}")
         except Exception as e:
             logger.warning(f"Failed to connect to Redis: {e}. Caching disabled.")

@@ -20,9 +20,9 @@ from backend.services import PDFGenerator
 
 def _report_to_csv_row(report: AnalysisReport) -> dict:
     """Convert a report to a CSV row dict."""
-    red_flags = [f.title for f in report.flags if f.severity.value == "red"]
-    yellow_flags = [f.title for f in report.flags if f.severity.value == "yellow"]
-    green_flags = [f.title for f in report.flags if f.severity.value == "green"]
+    red_flags = [f.reason for f in report.flags if f.severity.value == "red"]
+    yellow_flags = [f.reason for f in report.flags if f.severity.value == "yellow"]
+    green_flags = [f.reason for f in report.flags if f.severity.value == "green"]
 
     return {
         "report_id": str(report.report_id),
@@ -500,7 +500,7 @@ def _compare_reports(report1: AnalysisReport, report2: AnalysisReport) -> Charac
     shared_flags = [
         FlagDiff(
             code=code,
-            title=flags1[code].title,
+            title=flags1[code].reason,
             severity=flags1[code].severity.value,
             in_report_1=True,
             in_report_2=True,
@@ -511,7 +511,7 @@ def _compare_reports(report1: AnalysisReport, report2: AnalysisReport) -> Charac
     only_in_1 = [
         FlagDiff(
             code=code,
-            title=flags1[code].title,
+            title=flags1[code].reason,
             severity=flags1[code].severity.value,
             in_report_1=True,
             in_report_2=False,
@@ -522,7 +522,7 @@ def _compare_reports(report1: AnalysisReport, report2: AnalysisReport) -> Charac
     only_in_2 = [
         FlagDiff(
             code=code,
-            title=flags2[code].title,
+            title=flags2[code].reason,
             severity=flags2[code].severity.value,
             in_report_1=False,
             in_report_2=True,

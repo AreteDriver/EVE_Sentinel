@@ -4,7 +4,10 @@ import json
 from datetime import UTC, datetime
 
 import numpy as np
-from sklearn.model_selection import cross_val_score, train_test_split
+from sklearn.model_selection import (  # type: ignore[import-untyped]
+    cross_val_score,
+    train_test_split,
+)
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 

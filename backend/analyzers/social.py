@@ -73,7 +73,8 @@ class SocialAnalyzer(BaseAnalyzer):
                     evidence={
                         "hostile_alts": hostile_alts,
                         "detection_methods": [
-                            alt.detection_method for alt in suspected_alts
+                            alt.detection_method
+                            for alt in suspected_alts
                             if alt.character_name in [h["character_name"] for h in hostile_alts]
                         ],
                     },
@@ -83,8 +84,7 @@ class SocialAnalyzer(BaseAnalyzer):
 
         # Check for high-confidence alt detections
         high_confidence_alts = [
-            alt for alt in suspected_alts
-            if alt.confidence >= self.HIGH_CONFIDENCE_ALT_THRESHOLD
+            alt for alt in suspected_alts if alt.confidence >= self.HIGH_CONFIDENCE_ALT_THRESHOLD
         ]
         if len(high_confidence_alts) >= self.SUSPICIOUS_ALTS_THRESHOLD:
             flags.append(
@@ -95,7 +95,9 @@ class SocialAnalyzer(BaseAnalyzer):
                     reason=f"Large alt network detected ({len(high_confidence_alts)} high-confidence alts)",
                     evidence={
                         "alt_count": len(high_confidence_alts),
-                        "detection_methods": list(set(alt.detection_method for alt in high_confidence_alts)),
+                        "detection_methods": list(
+                            set(alt.detection_method for alt in high_confidence_alts)
+                        ),
                         "alt_names": [alt.character_name for alt in high_confidence_alts[:5]],
                     },
                     confidence=0.7,
@@ -105,7 +107,8 @@ class SocialAnalyzer(BaseAnalyzer):
         # Check for suspicious detection patterns
         # Multiple alts detected by login correlation could indicate spy behavior
         login_corr_alts = [
-            alt for alt in suspected_alts
+            alt
+            for alt in suspected_alts
             if alt.detection_method == "login_correlation"
             and alt.confidence >= self.MEDIUM_CONFIDENCE_ALT_THRESHOLD
         ]
@@ -131,10 +134,13 @@ class SocialAnalyzer(BaseAnalyzer):
         flags: list[RiskFlag] = []
 
         declared_count = len(applicant.declared_alts)
-        suspected_count = len([
-            alt for alt in applicant.suspected_alts
-            if alt.confidence >= self.MEDIUM_CONFIDENCE_ALT_THRESHOLD
-        ])
+        suspected_count = len(
+            [
+                alt
+                for alt in applicant.suspected_alts
+                if alt.confidence >= self.MEDIUM_CONFIDENCE_ALT_THRESHOLD
+            ]
+        )
 
         # Red flag: Suspected alts but none declared (potential spy behavior)
         if suspected_count >= 2 and declared_count == 0:
@@ -148,7 +154,8 @@ class SocialAnalyzer(BaseAnalyzer):
                         "suspected_count": suspected_count,
                         "declared_count": declared_count,
                         "suspected_names": [
-                            alt.character_name for alt in applicant.suspected_alts
+                            alt.character_name
+                            for alt in applicant.suspected_alts
                             if alt.confidence >= self.MEDIUM_CONFIDENCE_ALT_THRESHOLD
                         ][:5],
                     },
@@ -214,17 +221,21 @@ class SocialAnalyzer(BaseAnalyzer):
 
             # Check if contact is in hostile list
             if entity_type == "alliance" and entity_id in self.HOSTILE_ALLIANCES:
-                hostile_contacts.append({
-                    "entity_id": entity_id,
-                    "entity_type": entity_type,
-                    "standing": standing,
-                })
+                hostile_contacts.append(
+                    {
+                        "entity_id": entity_id,
+                        "entity_type": entity_type,
+                        "standing": standing,
+                    }
+                )
             elif entity_type == "corporation" and entity_id in self.HOSTILE_CORPS:
-                hostile_contacts.append({
-                    "entity_id": entity_id,
-                    "entity_type": entity_type,
-                    "standing": standing,
-                })
+                hostile_contacts.append(
+                    {
+                        "entity_id": entity_id,
+                        "entity_type": entity_type,
+                        "standing": standing,
+                    }
+                )
 
             if standing < 0:
                 negative_contacts.append(contact)
@@ -298,19 +309,23 @@ class SocialAnalyzer(BaseAnalyzer):
             alliance_id = evidence.get("alliance_id")
 
             if corp_id and corp_id in self.HOSTILE_CORPS:
-                hostile_alts.append({
-                    "character_id": alt.character_id,
-                    "character_name": alt.character_name,
-                    "hostile_corp_id": corp_id,
-                    "confidence": alt.confidence,
-                })
+                hostile_alts.append(
+                    {
+                        "character_id": alt.character_id,
+                        "character_name": alt.character_name,
+                        "hostile_corp_id": corp_id,
+                        "confidence": alt.confidence,
+                    }
+                )
             elif alliance_id and alliance_id in self.HOSTILE_ALLIANCES:
-                hostile_alts.append({
-                    "character_id": alt.character_id,
-                    "character_name": alt.character_name,
-                    "hostile_alliance_id": alliance_id,
-                    "confidence": alt.confidence,
-                })
+                hostile_alts.append(
+                    {
+                        "character_id": alt.character_id,
+                        "character_name": alt.character_name,
+                        "hostile_alliance_id": alliance_id,
+                        "confidence": alt.confidence,
+                    }
+                )
 
         return hostile_alts
 

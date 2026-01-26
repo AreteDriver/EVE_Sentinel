@@ -75,17 +75,11 @@ class SeATAdapter(AuthBridge):
             return list(data)
 
         except httpx.ConnectError as e:
-            raise AuthBridgeConnectionError(
-                f"Failed to connect to SeAT: {e}"
-            ) from e
+            raise AuthBridgeConnectionError(f"Failed to connect to SeAT: {e}") from e
         except httpx.HTTPStatusError as e:
             if e.response.status_code == 404:
-                raise AuthBridgeNotFoundError(
-                    f"Resource not found: {endpoint}"
-                ) from e
-            raise AuthBridgeConnectionError(
-                f"SeAT request failed: {e.response.status_code}"
-            ) from e
+                raise AuthBridgeNotFoundError(f"Resource not found: {endpoint}") from e
+            raise AuthBridgeConnectionError(f"SeAT request failed: {e.response.status_code}") from e
 
     async def get_character_info(self, character_id: int) -> dict[str, Any]:
         """Get character sheet from SeAT.
@@ -262,9 +256,7 @@ class SeATAdapter(AuthBridge):
             List of mail headers (subject, from, date).
         """
         try:
-            data = await self._get(
-                f"/api/v2/character/mail/{character_id}?limit={limit}"
-            )
+            data = await self._get(f"/api/v2/character/mail/{character_id}?limit={limit}")
             if isinstance(data, list):
                 return data
             return []

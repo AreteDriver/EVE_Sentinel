@@ -89,9 +89,7 @@ class ActivityAnalyzer(BaseAnalyzer):
 
         return flags
 
-    def _detect_inactive_periods(
-        self, activity, applicant: Applicant
-    ) -> list[RiskFlag]:
+    def _detect_inactive_periods(self, activity, applicant: Applicant) -> list[RiskFlag]:
         """Detect extended periods of inactivity."""
         flags: list[RiskFlag] = []
         now = datetime.now(UTC)
@@ -163,8 +161,7 @@ class ActivityAnalyzer(BaseAnalyzer):
                     category=FlagCategory.ACTIVITY,
                     code=YellowFlags.LOW_ACTIVITY,
                     reason=(
-                        f"Low engagement: {activity.active_days_per_week:.1f} "
-                        f"active days per week"
+                        f"Low engagement: {activity.active_days_per_week:.1f} active days per week"
                     ),
                     evidence={
                         "active_days_per_week": activity.active_days_per_week,
@@ -180,8 +177,7 @@ class ActivityAnalyzer(BaseAnalyzer):
                     category=FlagCategory.ACTIVITY,
                     code=GreenFlags.CONSISTENT_ACTIVITY,
                     reason=(
-                        f"Consistent activity: {activity.active_days_per_week:.1f} "
-                        f"days per week"
+                        f"Consistent activity: {activity.active_days_per_week:.1f} days per week"
                     ),
                     evidence={
                         "active_days_per_week": activity.active_days_per_week,

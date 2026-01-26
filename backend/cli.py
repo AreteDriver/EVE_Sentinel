@@ -17,9 +17,7 @@ async def train_model_command(min_samples: int) -> int:
 
     try:
         async with get_session() as session:
-            model, metrics = await train_from_database(
-                session, min_samples=min_samples, save=True
-            )
+            model, metrics = await train_from_database(session, min_samples=min_samples, save=True)
     except ValueError as e:
         print(f"Error: {e}")
         return 1
