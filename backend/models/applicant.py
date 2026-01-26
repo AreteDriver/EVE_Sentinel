@@ -122,6 +122,9 @@ class Applicant(BaseModel):
     # Wallet data (requires auth)
     wallet_journal: list[WalletEntry] = Field(default_factory=list)
 
+    # Standings data (requires auth)
+    standings_data: dict[str, Any] | None = None
+
     # Metadata
     fetched_at: datetime = Field(default_factory=lambda: datetime.now(UTC))
     data_sources: list[str] = Field(default_factory=list)  # ["esi", "zkill", "auth"]

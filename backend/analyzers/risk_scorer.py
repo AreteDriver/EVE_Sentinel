@@ -13,6 +13,7 @@ from .base import BaseAnalyzer
 from .corp_history import CorpHistoryAnalyzer
 from .killboard import KillboardAnalyzer
 from .ml_scorer import MLScorer
+from .standings import StandingsAnalyzer
 from .wallet import WalletAnalyzer
 
 
@@ -33,6 +34,7 @@ class RiskScorer:
             CorpHistoryAnalyzer(),
             WalletAnalyzer(),
             ActivityAnalyzer(),
+            StandingsAnalyzer(),
             # Add more analyzers as they're implemented:
             # AssetsAnalyzer(),
             # SocialAnalyzer(),
@@ -154,6 +156,11 @@ class RiskScorer:
 
         if "SHORT_TENURE" in flag_codes:
             recommendations.append("New to current corp - consider probationary period")
+
+        if "ENEMY_STANDINGS" in flag_codes:
+            recommendations.append(
+                "Positive standings with hostile entities detected - investigate relationship"
+            )
 
         if report.suspected_alts:
             recommendations.append(

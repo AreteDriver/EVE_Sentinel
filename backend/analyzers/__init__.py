@@ -7,6 +7,7 @@ from .corp_history import CorpHistoryAnalyzer
 from .killboard import KillboardAnalyzer
 from .ml_scorer import MLScorer
 from .risk_scorer import RiskScorer
+from .standings import StandingsAnalyzer
 from .wallet import WalletAnalyzer
 
 __all__ = [
@@ -17,5 +18,6 @@ __all__ = [
     "KillboardAnalyzer",
     "MLScorer",
     "RiskScorer",
+    "StandingsAnalyzer",
     "WalletAnalyzer",
 ]
