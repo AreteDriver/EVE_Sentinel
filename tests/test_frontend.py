@@ -132,6 +132,7 @@ class TestReportsList:
             mock_repo = MagicMock()
             mock_repo.list_reports = AsyncMock(return_value=[mock_summary])
             mock_repo.count_reports = AsyncMock(return_value=1)
+            mock_repo.get_all_flag_codes = AsyncMock(return_value=["FLAG_001", "FLAG_002"])
             mock_repo_class.return_value = mock_repo
 
             response = client.get("/reports")
@@ -147,6 +148,7 @@ class TestReportsList:
             mock_repo = MagicMock()
             mock_repo.list_reports = AsyncMock(return_value=[mock_summary])
             mock_repo.count_reports = AsyncMock(return_value=1)
+            mock_repo.get_all_flag_codes = AsyncMock(return_value=[])
             mock_repo_class.return_value = mock_repo
 
             response = client.get("/reports?risk=red")
@@ -163,6 +165,7 @@ class TestReportsList:
             mock_repo = MagicMock()
             mock_repo.list_reports = AsyncMock(return_value=[mock_summary])
             mock_repo.count_reports = AsyncMock(return_value=100)
+            mock_repo.get_all_flag_codes = AsyncMock(return_value=[])
             mock_repo_class.return_value = mock_repo
 
             response = client.get("/reports?page=3")

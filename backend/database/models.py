@@ -1,9 +1,9 @@
 """SQLAlchemy ORM models for report persistence."""
 
-from datetime import datetime
+from datetime import UTC, datetime
 
-from sqlalchemy import DateTime, Float, Index, Integer, String, Text
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String, Text
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
 class Base(DeclarativeBase):
@@ -63,4 +63,53 @@ class ReportRecord(Base):
     __table_args__ = (
         Index("idx_char_created", "character_id", "created_at"),
         Index("idx_risk_created", "overall_risk", "created_at"),
+    )
+
+    # Relationships
+    annotations: Mapped[list["AnnotationRecord"]] = relationship(
+        "AnnotationRecord",
+        back_populates="report",
+        cascade="all, delete-orphan",
+        order_by="AnnotationRecord.created_at.desc()",
+    )
+
+
+class AnnotationRecord(Base):
+    """
+    User annotation/note on a report.
+
+    Allows recruiters to add comments, notes, or decisions to reports.
+    """
+
+    __tablename__ = "annotations"
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Foreign key to report
+    report_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("reports.report_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    # Annotation content
+    author: Mapped[str] = mapped_column(String(255), nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Annotation type for categorization
+    annotation_type: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="note"
+    )  # note, decision, warning, info
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Relationship back to report
+    report: Mapped["ReportRecord"] = relationship(
+        "ReportRecord", back_populates="annotations"
     )

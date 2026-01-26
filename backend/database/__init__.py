@@ -1,7 +1,7 @@
 """Database persistence layer."""
 
-from backend.database.models import Base, ReportRecord
-from backend.database.repository import ReportRepository
+from backend.database.models import AnnotationRecord, Base, ReportRecord
+from backend.database.repository import AnnotationRepository, ReportRepository
 from backend.database.session import (
     close_db,
     get_session,
@@ -10,6 +10,8 @@ from backend.database.session import (
 )
 
 __all__ = [
+    "AnnotationRecord",
+    "AnnotationRepository",
     "Base",
     "ReportRecord",
     "ReportRepository",

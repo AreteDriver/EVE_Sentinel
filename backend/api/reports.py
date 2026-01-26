@@ -11,7 +11,8 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from backend.database import ReportRepository, get_session_dependency
+from backend.database import AnnotationRepository, ReportRepository, get_session_dependency
+from backend.database.repository import Annotation
 from backend.models.report import AnalysisReport, OverallRisk, ReportSummary
 from backend.rate_limit import LIMITS, limiter
 from backend.services import PDFGenerator
@@ -655,6 +656,88 @@ async def compare_reports_by_id(
     return _compare_reports(report1, report2)
 
 
+class SearchResponse(BaseModel):
+    """Search results with pagination info."""
+
+    results: list[ReportSummary]
+    total: int
+    limit: int
+    offset: int
+    query: str | None = None
+    risk_filter: str | None = None
+    flag_filter: str | None = None
+
+
+@router.get("/search", response_model=SearchResponse)
+@limiter.limit(LIMITS["reports"])
+async def search_reports(
+    request: Request,
+    q: str | None = Query(default=None, description="Search by character name"),
+    risk: OverallRisk | None = Query(default=None, description="Filter by risk level"),
+    flag: str | None = Query(default=None, description="Filter by flag code"),
+    date_from: datetime | None = Query(default=None, description="Start date (ISO format)"),
+    date_to: datetime | None = Query(default=None, description="End date (ISO format)"),
+    limit: int = Query(default=50, ge=1, le=200),
+    offset: int = Query(default=0, ge=0),
+    session: AsyncSession = Depends(get_session_dependency),
+) -> SearchResponse:
+    """
+    Search reports with multiple filters.
+
+    Search criteria:
+    - q: Character name (case-insensitive partial match)
+    - risk: Filter by risk level (RED, YELLOW, GREEN)
+    - flag: Filter by specific flag code
+    - date_from/date_to: Filter by creation date range
+
+    Returns paginated results with total count.
+    """
+    repo = ReportRepository(session)
+
+    results = await repo.search_reports(
+        query=q,
+        risk_filter=risk,
+        flag_code=flag,
+        date_from=date_from,
+        date_to=date_to,
+        limit=limit,
+        offset=offset,
+    )
+
+    total = await repo.count_search_results(
+        query=q,
+        risk_filter=risk,
+        flag_code=flag,
+        date_from=date_from,
+        date_to=date_to,
+    )
+
+    return SearchResponse(
+        results=results,
+        total=total,
+        limit=limit,
+        offset=offset,
+        query=q,
+        risk_filter=risk.value if risk else None,
+        flag_filter=flag,
+    )
+
+
+@router.get("/search/flags", response_model=list[str])
+@limiter.limit(LIMITS["reports"])
+async def get_available_flags(
+    request: Request,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> list[str]:
+    """
+    Get all unique flag codes for filter dropdown.
+
+    Returns sorted list of flag codes that exist in the database.
+    """
+    repo = ReportRepository(session)
+    return await repo.get_all_flag_codes()
+
+
 @router.get("/stats/dashboard", response_model=DashboardStats)
 @limiter.limit(LIMITS["reports"])
 async def get_dashboard_stats(
@@ -698,3 +781,172 @@ async def get_dashboard_stats(
         time_series=time_series,
         top_flags=top_flags,
     )
+
+
+# --- Annotation Endpoints ---
+
+
+class CreateAnnotationRequest(BaseModel):
+    """Request to create an annotation."""
+
+    author: str
+    content: str
+    annotation_type: str = "note"  # note, decision, warning, info
+
+
+class UpdateAnnotationRequest(BaseModel):
+    """Request to update an annotation."""
+
+    content: str | None = None
+    annotation_type: str | None = None
+
+
+@router.get("/{report_id}/annotations", response_model=list[Annotation])
+@limiter.limit(LIMITS["reports"])
+async def get_report_annotations(
+    request: Request,
+    report_id: UUID,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> list[Annotation]:
+    """
+    Get all annotations for a report.
+
+    Returns annotations ordered by creation date, newest first.
+    """
+    # Verify report exists
+    report_repo = ReportRepository(session)
+    report = await report_repo.get_by_id(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    annotation_repo = AnnotationRepository(session)
+    return await annotation_repo.get_by_report_id(report_id)
+
+
+@router.post("/{report_id}/annotations", response_model=Annotation, status_code=201)
+@limiter.limit(LIMITS["reports"])
+async def create_annotation(
+    request: Request,
+    report_id: UUID,
+    annotation_request: CreateAnnotationRequest,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> Annotation:
+    """
+    Create a new annotation on a report.
+
+    Annotation types:
+    - note: General note or observation
+    - decision: Recruitment decision (accept/reject/review)
+    - warning: Important warning for other recruiters
+    - info: Additional information about the applicant
+    """
+    # Verify report exists
+    report_repo = ReportRepository(session)
+    report = await report_repo.get_by_id(report_id)
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    # Validate annotation type
+    valid_types = ["note", "decision", "warning", "info"]
+    if annotation_request.annotation_type not in valid_types:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid annotation type. Must be one of: {', '.join(valid_types)}",
+        )
+
+    annotation_repo = AnnotationRepository(session)
+    return await annotation_repo.create(
+        report_id=report_id,
+        author=annotation_request.author,
+        content=annotation_request.content,
+        annotation_type=annotation_request.annotation_type,
+    )
+
+
+@router.get("/{report_id}/annotations/{annotation_id}", response_model=Annotation)
+@limiter.limit(LIMITS["reports"])
+async def get_annotation(
+    request: Request,
+    report_id: UUID,
+    annotation_id: int,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> Annotation:
+    """Get a specific annotation by ID."""
+    annotation_repo = AnnotationRepository(session)
+    annotation = await annotation_repo.get_by_id(annotation_id)
+
+    if not annotation:
+        raise HTTPException(status_code=404, detail="Annotation not found")
+
+    # Verify annotation belongs to the specified report
+    if annotation.report_id != str(report_id):
+        raise HTTPException(status_code=404, detail="Annotation not found")
+
+    return annotation
+
+
+@router.patch("/{report_id}/annotations/{annotation_id}", response_model=Annotation)
+@limiter.limit(LIMITS["reports"])
+async def update_annotation(
+    request: Request,
+    report_id: UUID,
+    annotation_id: int,
+    update_request: UpdateAnnotationRequest,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> Annotation:
+    """Update an annotation's content or type."""
+    annotation_repo = AnnotationRepository(session)
+
+    # Get existing annotation
+    annotation = await annotation_repo.get_by_id(annotation_id)
+    if not annotation:
+        raise HTTPException(status_code=404, detail="Annotation not found")
+
+    # Verify annotation belongs to the specified report
+    if annotation.report_id != str(report_id):
+        raise HTTPException(status_code=404, detail="Annotation not found")
+
+    # Validate annotation type if provided
+    if update_request.annotation_type:
+        valid_types = ["note", "decision", "warning", "info"]
+        if update_request.annotation_type not in valid_types:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid annotation type. Must be one of: {', '.join(valid_types)}",
+            )
+
+    updated = await annotation_repo.update(
+        annotation_id=annotation_id,
+        content=update_request.content,
+        annotation_type=update_request.annotation_type,
+    )
+
+    if not updated:
+        raise HTTPException(status_code=404, detail="Annotation not found")
+
+    return updated
+
+
+@router.delete("/{report_id}/annotations/{annotation_id}", status_code=204)
+@limiter.limit(LIMITS["reports"])
+async def delete_annotation(
+    request: Request,
+    report_id: UUID,
+    annotation_id: int,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> None:
+    """Delete an annotation."""
+    annotation_repo = AnnotationRepository(session)
+
+    # Get existing annotation
+    annotation = await annotation_repo.get_by_id(annotation_id)
+    if not annotation:
+        raise HTTPException(status_code=404, detail="Annotation not found")
+
+    # Verify annotation belongs to the specified report
+    if annotation.report_id != str(report_id):
+        raise HTTPException(status_code=404, detail="Annotation not found")
+
+    deleted = await annotation_repo.delete(annotation_id)
+    if not deleted:
+        raise HTTPException(status_code=404, detail="Annotation not found")

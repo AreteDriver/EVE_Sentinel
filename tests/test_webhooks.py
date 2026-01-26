@@ -176,9 +176,10 @@ class TestDiscordWebhook:
             return_value=Response(204)
         )
 
-        result = await webhook_client.send_report(mock_report)
+        success, error = await webhook_client.send_report(mock_report)
 
-        assert result is True
+        assert success is True
+        assert error is None
         assert route.called
 
     @pytest.mark.asyncio
@@ -187,9 +188,10 @@ class TestDiscordWebhook:
         """Test handling failed webhook send."""
         respx.post("https://discord.com/api/webhooks/test/token").mock(return_value=Response(400))
 
-        result = await webhook_client.send_report(mock_report)
+        success, error = await webhook_client.send_report(mock_report)
 
-        assert result is False
+        assert success is False
+        assert error is not None
 
     @pytest.mark.asyncio
     @respx.mock
@@ -227,10 +229,11 @@ class TestDiscordWebhook:
 
     @pytest.mark.asyncio
     async def test_send_report_no_url_returns_false(self, mock_report):
-        """Test that missing URL returns False."""
+        """Test that missing URL returns False with error message."""
         client = DiscordWebhook()  # No URL
-        result = await client.send_report(mock_report)
-        assert result is False
+        success, error = await client.send_report(mock_report)
+        assert success is False
+        assert error == "No webhook URL configured"
 
     @pytest.mark.asyncio
     @respx.mock
@@ -240,16 +243,18 @@ class TestDiscordWebhook:
             return_value=Response(204)
         )
 
-        result = await webhook_client.send_batch_summary([mock_report, green_report])
+        success, error = await webhook_client.send_batch_summary([mock_report, green_report])
 
-        assert result is True
+        assert success is True
+        assert error is None
         assert route.called
 
     @pytest.mark.asyncio
     async def test_send_batch_summary_empty_list(self, webhook_client):
-        """Test batch summary with empty list returns False."""
-        result = await webhook_client.send_batch_summary([])
-        assert result is False
+        """Test batch summary with empty list returns False with error."""
+        success, error = await webhook_client.send_batch_summary([])
+        assert success is False
+        assert "No webhook URL or reports" in error
 
     @pytest.mark.asyncio
     @respx.mock
@@ -257,9 +262,10 @@ class TestDiscordWebhook:
         """Test webhook test succeeds."""
         respx.post("https://discord.com/api/webhooks/test/token").mock(return_value=Response(200))
 
-        result = await webhook_client.test_webhook()
+        success, error = await webhook_client.test_webhook()
 
-        assert result is True
+        assert success is True
+        assert error is None
 
     @pytest.mark.asyncio
     @respx.mock
@@ -267,9 +273,10 @@ class TestDiscordWebhook:
         """Test webhook test failure."""
         respx.post("https://discord.com/api/webhooks/test/token").mock(return_value=Response(401))
 
-        result = await webhook_client.test_webhook()
+        success, error = await webhook_client.test_webhook()
 
-        assert result is False
+        assert success is False
+        assert error is not None
 
 
 class TestWebhookAPIEndpoints:
@@ -287,10 +294,13 @@ class TestWebhookAPIEndpoints:
         assert response.status_code == 200
         data = response.json()
         assert "discord_configured" in data
+        assert "slack_configured" in data
         assert "webhook_on_red" in data
         assert "webhook_on_yellow" in data
         assert "webhook_on_batch" in data
-        assert "alert_role_configured" in data
+        assert "discord_alert_role_configured" in data
+        assert "slack_mention_channel" in data
+        assert "max_retries" in data
 
     def test_webhook_config_defaults(self, client):
         """Test default webhook configuration values."""
@@ -348,4 +358,4 @@ class TestWebhookAPIEndpoints:
 
         # Should return 400 since no webhook is configured by default
         assert response.status_code == 400
-        assert "no default webhook" in response.json()["detail"].lower()
+        assert "no default discord webhook" in response.json()["detail"].lower()

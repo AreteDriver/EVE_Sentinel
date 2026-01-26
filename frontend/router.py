@@ -65,10 +65,16 @@ async def dashboard(
 async def reports_list(
     request: Request,
     risk: str | None = Query(default=None, description="Filter by risk level"),
+    q: str | None = Query(default=None, description="Search by character name"),
+    flag: str | None = Query(default=None, description="Filter by flag code"),
+    date_from: str | None = Query(default=None, description="Start date"),
+    date_to: str | None = Query(default=None, description="End date"),
     page: int = Query(default=1, ge=1),
     session: AsyncSession = Depends(get_session_dependency),
 ) -> HTMLResponse:
-    """Reports list with filtering and pagination."""
+    """Reports list with filtering, search, and pagination."""
+    from datetime import datetime
+
     repo = ReportRepository(session)
 
     limit = 25
@@ -79,8 +85,44 @@ async def reports_list(
     if risk and risk.upper() in ["RED", "YELLOW", "GREEN"]:
         risk_filter = OverallRisk(risk.upper())
 
-    reports = await repo.list_reports(limit=limit, offset=offset, risk_filter=risk_filter)
-    total = await repo.count_reports(risk_filter)
+    # Parse date filters
+    date_from_dt = None
+    date_to_dt = None
+    if date_from:
+        try:
+            date_from_dt = datetime.fromisoformat(date_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            date_to_dt = datetime.fromisoformat(date_to)
+        except ValueError:
+            pass
+
+    # Get available flag codes for dropdown
+    available_flags = await repo.get_all_flag_codes()
+
+    # Use search if any search params provided
+    if q or flag or date_from_dt or date_to_dt:
+        reports = await repo.search_reports(
+            query=q,
+            risk_filter=risk_filter,
+            flag_code=flag,
+            date_from=date_from_dt,
+            date_to=date_to_dt,
+            limit=limit,
+            offset=offset,
+        )
+        total = await repo.count_search_results(
+            query=q,
+            risk_filter=risk_filter,
+            flag_code=flag,
+            date_from=date_from_dt,
+            date_to=date_to_dt,
+        )
+    else:
+        reports = await repo.list_reports(limit=limit, offset=offset, risk_filter=risk_filter)
+        total = await repo.count_reports(risk_filter)
 
     total_pages = (total + limit - 1) // limit
 
@@ -93,6 +135,11 @@ async def reports_list(
             "total_pages": total_pages,
             "total_reports": total,
             "risk_filter": risk,
+            "search_query": q,
+            "flag_filter": flag,
+            "date_from": date_from,
+            "date_to": date_to,
+            "available_flags": available_flags,
         },
     )
 
@@ -180,10 +227,16 @@ async def compare_form(
 async def reports_table_partial(
     request: Request,
     risk: str | None = Query(default=None),
+    q: str | None = Query(default=None),
+    flag: str | None = Query(default=None),
+    date_from: str | None = Query(default=None),
+    date_to: str | None = Query(default=None),
     page: int = Query(default=1, ge=1),
     session: AsyncSession = Depends(get_session_dependency),
 ) -> HTMLResponse:
-    """HTMX partial: filtered reports table."""
+    """HTMX partial: filtered and searched reports table."""
+    from datetime import datetime
+
     repo = ReportRepository(session)
 
     limit = 25
@@ -193,8 +246,42 @@ async def reports_table_partial(
     if risk and risk.upper() in ["RED", "YELLOW", "GREEN"]:
         risk_filter = OverallRisk(risk.upper())
 
-    reports = await repo.list_reports(limit=limit, offset=offset, risk_filter=risk_filter)
-    total = await repo.count_reports(risk_filter)
+    # Parse date filters
+    date_from_dt = None
+    date_to_dt = None
+    if date_from:
+        try:
+            date_from_dt = datetime.fromisoformat(date_from)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            date_to_dt = datetime.fromisoformat(date_to)
+        except ValueError:
+            pass
+
+    # Use search if any search params provided
+    if q or flag or date_from_dt or date_to_dt:
+        reports = await repo.search_reports(
+            query=q,
+            risk_filter=risk_filter,
+            flag_code=flag,
+            date_from=date_from_dt,
+            date_to=date_to_dt,
+            limit=limit,
+            offset=offset,
+        )
+        total = await repo.count_search_results(
+            query=q,
+            risk_filter=risk_filter,
+            flag_code=flag,
+            date_from=date_from_dt,
+            date_to=date_to_dt,
+        )
+    else:
+        reports = await repo.list_reports(limit=limit, offset=offset, risk_filter=risk_filter)
+        total = await repo.count_reports(risk_filter)
+
     total_pages = (total + limit - 1) // limit
 
     return templates.TemplateResponse(
@@ -206,6 +293,8 @@ async def reports_table_partial(
             "total_pages": total_pages,
             "total_reports": total,
             "risk_filter": risk,
+            "search_query": q,
+            "flag_filter": flag,
         },
     )
 

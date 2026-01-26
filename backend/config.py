@@ -21,10 +21,16 @@ class Settings(BaseSettings):
     discord_webhook_url: str | None = None
     discord_alert_role_id: str | None = None  # Role to mention for high-risk
 
+    # Slack webhooks
+    slack_webhook_url: str | None = None
+    slack_mention_channel: bool = True  # Use @channel for high-risk alerts
+
     # Webhook behavior
     webhook_on_red: bool = True  # Send webhook for RED risk
     webhook_on_yellow: bool = False  # Send webhook for YELLOW risk
     webhook_on_batch: bool = True  # Send summary after batch analysis
+    webhook_max_retries: int = 3  # Max retry attempts
+    webhook_retry_delay: float = 1.0  # Initial retry delay in seconds
 
     # ESI configuration (for future authenticated endpoints)
     esi_client_id: str | None = None

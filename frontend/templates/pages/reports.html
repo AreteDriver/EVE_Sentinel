@@ -8,15 +8,76 @@
     <p class="text-muted mb-0">{{ total_reports }} total reports</p>
 </div>
 
-<!-- Filters -->
+<!-- Search Bar -->
+<div class="card card-sentinel mb-3">
+    <div class="card-body py-3">
+        <form id="search-form" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="search-query" class="form-label small text-muted">Character Name</label>
+                <div class="input-group">
+                    <span class="input-group-text" style="background: var(--eve-surface); border-color: var(--eve-border);">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input type="text" class="form-control" id="search-query" name="q"
+                           placeholder="Search characters..."
+                           value="{{ search_query or '' }}"
+                           style="background: var(--eve-surface); border-color: var(--eve-border); color: var(--eve-text);">
+                </div>
+            </div>
+            <div class="col-md-2">
+                <label for="risk-select" class="form-label small text-muted">Risk Level</label>
+                <select class="form-select" id="risk-select" name="risk"
+                        style="background: var(--eve-surface); border-color: var(--eve-border); color: var(--eve-text);">
+                    <option value="">All Risks</option>
+                    <option value="red" {% if risk_filter == 'red' %}selected{% endif %}>Red</option>
+                    <option value="yellow" {% if risk_filter == 'yellow' %}selected{% endif %}>Yellow</option>
+                    <option value="green" {% if risk_filter == 'green' %}selected{% endif %}>Green</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="flag-select" class="form-label small text-muted">Flag Type</label>
+                <select class="form-select" id="flag-select" name="flag"
+                        style="background: var(--eve-surface); border-color: var(--eve-border); color: var(--eve-text);">
+                    <option value="">All Flags</option>
+                    {% for flag in available_flags or [] %}
+                    <option value="{{ flag }}" {% if flag_filter == flag %}selected{% endif %}>{{ flag }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="date-from" class="form-label small text-muted">From Date</label>
+                <input type="date" class="form-control" id="date-from" name="date_from"
+                       value="{{ date_from or '' }}"
+                       style="background: var(--eve-surface); border-color: var(--eve-border); color: var(--eve-text);">
+            </div>
+            <div class="col-md-2">
+                <div class="d-flex gap-2">
+                    <div class="flex-grow-1">
+                        <label for="date-to" class="form-label small text-muted">To Date</label>
+                        <input type="date" class="form-control" id="date-to" name="date_to"
+                               value="{{ date_to or '' }}"
+                               style="background: var(--eve-surface); border-color: var(--eve-border); color: var(--eve-text);">
+                    </div>
+                    <div class="d-flex align-items-end">
+                        <button type="submit" class="btn btn-sentinel">
+                            <i class="bi bi-search"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Quick Filters -->
 <div class="card card-sentinel mb-4">
     <div class="card-body py-3">
         <div class="d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-3">
-                <span class="text-muted">Filter by risk:</span>
+                <span class="text-muted">Quick filter:</span>
                 <div class="btn-group" role="group">
                     <a href="/reports"
-                       class="filter-btn {% if not risk_filter %}active{% endif %}"
+                       class="filter-btn {% if not risk_filter and not search_query %}active{% endif %}"
                        hx-get="/partials/reports-table"
                        hx-target="#reports-container"
                        hx-push-url="/reports">
@@ -44,6 +105,11 @@
                         <i class="bi bi-check-circle-fill"></i> Green
                     </a>
                 </div>
+                {% if search_query or flag_filter or date_from or date_to %}
+                <a href="/reports" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-x-circle me-1"></i>Clear Filters
+                </a>
+                {% endif %}
             </div>
             <div class="dropdown">
                 <button class="btn btn-outline-sentinel dropdown-toggle" type="button" data-bs-toggle="dropdown">

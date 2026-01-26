@@ -204,7 +204,7 @@
         {% endif %}
 
         <!-- Report Metadata -->
-        <div class="card card-sentinel">
+        <div class="card card-sentinel mb-4">
             <div class="card-header">
                 <i class="bi bi-info-circle me-2"></i>Report Details
             </div>
@@ -257,6 +257,60 @@
                 </table>
             </div>
         </div>
+
+        <!-- Annotations Section -->
+        <div class="card card-sentinel">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-chat-square-text me-2"></i>Notes & Annotations</span>
+                <button class="btn btn-sm btn-sentinel" type="button" data-bs-toggle="collapse" data-bs-target="#add-annotation-form">
+                    <i class="bi bi-plus-lg me-1"></i>Add Note
+                </button>
+            </div>
+            <div class="card-body">
+                <!-- Add Annotation Form -->
+                <div class="collapse mb-3" id="add-annotation-form">
+                    <form id="annotation-form" class="border rounded p-3" style="border-color: var(--eve-border) !important; background: var(--eve-surface);">
+                        <div class="mb-3">
+                            <label for="annotation-author" class="form-label small text-muted">Your Name</label>
+                            <input type="text" class="form-control form-control-sm" id="annotation-author"
+                                   placeholder="Enter your name" required
+                                   style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                        </div>
+                        <div class="mb-3">
+                            <label for="annotation-type" class="form-label small text-muted">Type</label>
+                            <select class="form-select form-select-sm" id="annotation-type"
+                                    style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                                <option value="note">Note</option>
+                                <option value="decision">Decision</option>
+                                <option value="warning">Warning</option>
+                                <option value="info">Info</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="annotation-content" class="form-label small text-muted">Content</label>
+                            <textarea class="form-control form-control-sm" id="annotation-content" rows="3"
+                                      placeholder="Write your note here..." required
+                                      style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);"></textarea>
+                        </div>
+                        <div class="d-flex justify-content-end gap-2">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="collapse" data-bs-target="#add-annotation-form">
+                                Cancel
+                            </button>
+                            <button type="submit" class="btn btn-sm btn-sentinel">
+                                <i class="bi bi-check-lg me-1"></i>Save Note
+                            </button>
+                        </div>
+                    </form>
+                </div>
+
+                <!-- Annotations List -->
+                <div id="annotations-list">
+                    <div class="text-center text-muted py-3">
+                        <i class="bi bi-hourglass-split"></i> Loading annotations...
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -275,4 +329,137 @@
         <i class="bi bi-arrow-left me-1"></i>Back to Reports
     </a>
 </div>
+
+<script>
+const REPORT_ID = '{{ report.report_id }}';
+const API_BASE = `/api/v1/reports/${REPORT_ID}/annotations`;
+
+// Load annotations on page load
+document.addEventListener('DOMContentLoaded', loadAnnotations);
+
+// Handle form submission
+document.getElementById('annotation-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+
+    const author = document.getElementById('annotation-author').value;
+    const content = document.getElementById('annotation-content').value;
+    const annotationType = document.getElementById('annotation-type').value;
+
+    try {
+        const response = await fetch(API_BASE, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                author: author,
+                content: content,
+                annotation_type: annotationType
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error('Failed to create annotation');
+        }
+
+        // Clear form and collapse
+        document.getElementById('annotation-content').value = '';
+        const collapse = bootstrap.Collapse.getInstance(document.getElementById('add-annotation-form'));
+        if (collapse) collapse.hide();
+
+        // Reload annotations
+        loadAnnotations();
+    } catch (error) {
+        alert('Error creating annotation: ' + error.message);
+    }
+});
+
+async function loadAnnotations() {
+    const container = document.getElementById('annotations-list');
+
+    try {
+        const response = await fetch(API_BASE);
+        if (!response.ok) throw new Error('Failed to load annotations');
+
+        const annotations = await response.json();
+
+        if (annotations.length === 0) {
+            container.innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="bi bi-chat-square"></i>
+                    <p class="mb-0 mt-2">No annotations yet</p>
+                </div>
+            `;
+            return;
+        }
+
+        container.innerHTML = annotations.map(annotation => renderAnnotation(annotation)).join('');
+    } catch (error) {
+        container.innerHTML = `
+            <div class="text-center text-danger py-3">
+                <i class="bi bi-exclamation-triangle"></i>
+                <p class="mb-0 mt-2">Error loading annotations</p>
+            </div>
+        `;
+    }
+}
+
+function renderAnnotation(annotation) {
+    const typeIcons = {
+        'note': 'bi-sticky',
+        'decision': 'bi-check2-square',
+        'warning': 'bi-exclamation-triangle',
+        'info': 'bi-info-circle'
+    };
+    const typeColors = {
+        'note': 'text-muted',
+        'decision': 'text-success',
+        'warning': 'text-warning',
+        'info': 'text-info'
+    };
+
+    const icon = typeIcons[annotation.annotation_type] || 'bi-sticky';
+    const color = typeColors[annotation.annotation_type] || 'text-muted';
+    const date = new Date(annotation.created_at).toLocaleString();
+
+    return `
+        <div class="annotation-item border-bottom pb-3 mb-3" data-annotation-id="${annotation.id}" style="border-color: var(--eve-border) !important;">
+            <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                    <span class="badge ${annotation.annotation_type === 'warning' ? 'bg-warning text-dark' : annotation.annotation_type === 'decision' ? 'bg-success' : annotation.annotation_type === 'info' ? 'bg-info' : 'bg-secondary'}">
+                        <i class="bi ${icon} me-1"></i>${annotation.annotation_type}
+                    </span>
+                    <strong class="ms-2" style="color: var(--eve-text);">${escapeHtml(annotation.author)}</strong>
+                    <small class="text-muted ms-2">${date}</small>
+                    ${annotation.updated_at ? '<small class="text-muted">(edited)</small>' : ''}
+                </div>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteAnnotation(${annotation.id})" title="Delete">
+                    <i class="bi bi-trash"></i>
+                </button>
+            </div>
+            <div style="color: var(--eve-text); white-space: pre-wrap;">${escapeHtml(annotation.content)}</div>
+        </div>
+    `;
+}
+
+async function deleteAnnotation(annotationId) {
+    if (!confirm('Are you sure you want to delete this annotation?')) return;
+
+    try {
+        const response = await fetch(`${API_BASE}/${annotationId}`, {
+            method: 'DELETE'
+        });
+
+        if (!response.ok) throw new Error('Failed to delete annotation');
+
+        loadAnnotations();
+    } catch (error) {
+        alert('Error deleting annotation: ' + error.message);
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+</script>
 {% endblock %}

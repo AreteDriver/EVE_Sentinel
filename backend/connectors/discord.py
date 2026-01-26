@@ -1,5 +1,6 @@
 """Discord webhook client for sending recruitment alerts."""
 
+import asyncio
 from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
@@ -23,10 +24,18 @@ class DiscordWebhook:
     Client for sending recruitment alerts to Discord.
 
     Sends formatted embeds with risk assessment summaries.
+    Includes retry logic with exponential backoff.
     """
 
-    def __init__(self, webhook_url: str | None = None) -> None:
+    def __init__(
+        self,
+        webhook_url: str | None = None,
+        max_retries: int = 3,
+        initial_delay: float = 1.0,
+    ) -> None:
         self.webhook_url = webhook_url
+        self.max_retries = max_retries
+        self.initial_delay = initial_delay
         self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
@@ -40,6 +49,51 @@ class DiscordWebhook:
         if self._client:
             await self._client.aclose()
             self._client = None
+
+    async def _send_with_retry(
+        self,
+        url: str,
+        payload: dict[str, Any],
+    ) -> tuple[bool, str | None]:
+        """
+        Send request with exponential backoff retry.
+
+        Returns:
+            Tuple of (success, error_message)
+        """
+        client = await self._get_client()
+        last_error: str | None = None
+
+        for attempt in range(self.max_retries):
+            try:
+                response = await client.post(url, json=payload)
+
+                if response.status_code in (200, 204):
+                    return True, None
+
+                # Rate limited - respect Retry-After header
+                if response.status_code == 429:
+                    retry_data = response.json()
+                    retry_after = retry_data.get("retry_after", 5)
+                    await asyncio.sleep(float(retry_after))
+                    continue
+
+                # Other error
+                last_error = f"HTTP {response.status_code}: {response.text}"
+
+            except httpx.TimeoutException:
+                last_error = "Request timed out"
+            except httpx.ConnectError:
+                last_error = "Connection failed"
+            except Exception as e:
+                last_error = str(e)
+
+            # Exponential backoff
+            if attempt < self.max_retries - 1:
+                delay = self.initial_delay * (2**attempt)
+                await asyncio.sleep(delay)
+
+        return False, last_error
 
     def _get_color(self, risk: OverallRisk) -> int:
         """Get embed color for risk level."""
@@ -155,7 +209,7 @@ class DiscordWebhook:
         report: AnalysisReport,
         webhook_url: str | None = None,
         mention_role: str | None = None,
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Send an analysis report to Discord.
 
@@ -165,11 +219,11 @@ class DiscordWebhook:
             mention_role: Optional role ID to mention (e.g., "123456789")
 
         Returns:
-            True if sent successfully, False otherwise
+            Tuple of (success, error_message)
         """
         url = webhook_url or self.webhook_url
         if not url:
-            return False
+            return False, "No webhook URL configured"
 
         embed = self._build_embed(report)
 
@@ -184,18 +238,13 @@ class DiscordWebhook:
         if content:
             payload["content"] = content
 
-        try:
-            client = await self._get_client()
-            response = await client.post(url, json=payload)
-            return response.status_code in (200, 204)
-        except Exception:
-            return False
+        return await self._send_with_retry(url, payload)
 
     async def send_batch_summary(
         self,
         reports: list[AnalysisReport],
         webhook_url: str | None = None,
-    ) -> bool:
+    ) -> tuple[bool, str | None]:
         """
         Send a summary of batch analysis results.
 
@@ -204,11 +253,11 @@ class DiscordWebhook:
             webhook_url: Override webhook URL
 
         Returns:
-            True if sent successfully
+            Tuple of (success, error_message)
         """
         url = webhook_url or self.webhook_url
         if not url or not reports:
-            return False
+            return False, "No webhook URL or reports"
 
         # Count by risk level
         red_count = sum(1 for r in reports if r.overall_risk == OverallRisk.RED)
@@ -262,23 +311,18 @@ class DiscordWebhook:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-        try:
-            client = await self._get_client()
-            response = await client.post(url, json={"embeds": [embed]})
-            return response.status_code in (200, 204)
-        except Exception:
-            return False
+        return await self._send_with_retry(url, {"embeds": [embed]})
 
-    async def test_webhook(self, webhook_url: str | None = None) -> bool:
+    async def test_webhook(self, webhook_url: str | None = None) -> tuple[bool, str | None]:
         """
         Send a test message to verify webhook configuration.
 
         Returns:
-            True if webhook is working
+            Tuple of (success, error_message)
         """
         url = webhook_url or self.webhook_url
         if not url:
-            return False
+            return False, "No webhook URL configured"
 
         embed = {
             "title": "EVE Sentinel Webhook Test",
@@ -288,9 +332,4 @@ class DiscordWebhook:
             "timestamp": datetime.now(UTC).isoformat(),
         }
 
-        try:
-            client = await self._get_client()
-            response = await client.post(url, json={"embeds": [embed]})
-            return response.status_code in (200, 204)
-        except Exception:
-            return False
+        return await self._send_with_retry(url, {"embeds": [embed]})
