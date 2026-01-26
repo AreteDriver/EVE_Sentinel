@@ -1,5 +1,6 @@
 """Training pipeline for the risk prediction model."""
 
+import json
 from datetime import UTC, datetime
 
 import numpy as np
@@ -75,7 +76,7 @@ async def fetch_training_data(
     query = select(ReportRecord).where(
         ReportRecord.status == "completed",
         ReportRecord.overall_risk.in_(["RED", "YELLOW", "GREEN"]),
-        ReportRecord.applicant_data.isnot(None),
+        ReportRecord.applicant_data_json.isnot(None),
     )
 
     result = await session.execute(query)
@@ -90,8 +91,9 @@ async def fetch_training_data(
     labels = []
 
     for record in records:
-        if record.applicant_data:
-            applicant = Applicant.model_validate(record.applicant_data)
+        if record.applicant_data_json:
+            applicant_dict = json.loads(record.applicant_data_json)
+            applicant = Applicant.model_validate(applicant_dict)
             risk = OverallRisk(record.overall_risk)
             applicants.append(applicant)
             labels.append(risk)

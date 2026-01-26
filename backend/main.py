@@ -9,6 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from backend.api.analyze import router as analyze_router
+from backend.api.ml import router as ml_router
 from backend.api.reports import router as reports_router
 from backend.api.webhooks import router as webhooks_router
 from backend.config import settings
@@ -79,6 +80,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(analyze_router)
 app.include_router(reports_router)
 app.include_router(webhooks_router)
+app.include_router(ml_router)
 
 # Include frontend router (must be last to avoid path conflicts)
 app.include_router(frontend_router)

@@ -59,3 +59,8 @@ reports/
 secrets/
 *.pem
 *.key
+
+# ML Models
+backend/data/models/*.joblib
+backend/data/models/*.pkl
+!backend/data/models/.gitkeep
