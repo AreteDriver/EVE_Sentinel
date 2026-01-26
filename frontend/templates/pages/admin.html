@@ -110,6 +110,19 @@
                 </div>
             </div>
         </div>
+
+        <!-- Webhook Status -->
+        <div class="card card-sentinel mt-4">
+            <div class="card-header">
+                <i class="bi bi-bell me-2"></i>Webhook Notifications
+            </div>
+            <div class="card-body" id="webhook-status">
+                <div class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <span class="ms-2">Loading...</span>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Users -->
@@ -300,6 +313,81 @@ async function loadMLStatus() {
     }
 }
 
+// Load webhook status
+async function loadWebhookStatus() {
+    try {
+        const response = await fetch('/api/v1/webhooks/config');
+        const data = await response.json();
+
+        document.getElementById('webhook-status').innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span><i class="bi bi-discord me-1"></i>Discord</span>
+                <span class="badge ${data.discord_configured ? 'bg-success' : 'bg-secondary'}">${data.discord_configured ? 'Configured' : 'Not Set'}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span><i class="bi bi-slack me-1"></i>Slack</span>
+                <span class="badge ${data.slack_configured ? 'bg-success' : 'bg-secondary'}">${data.slack_configured ? 'Configured' : 'Not Set'}</span>
+            </div>
+            <hr style="border-color: var(--eve-border); margin: 0.5rem 0;">
+            <div class="small text-muted mb-2">Notify on:</div>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small">Red Risk</span>
+                <span class="badge ${data.webhook_on_red ? 'bg-success' : 'bg-secondary'} small">${data.webhook_on_red ? 'Yes' : 'No'}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-1">
+                <span class="small">Yellow Risk</span>
+                <span class="badge ${data.webhook_on_yellow ? 'bg-success' : 'bg-secondary'} small">${data.webhook_on_yellow ? 'Yes' : 'No'}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <span class="small">Batch Complete</span>
+                <span class="badge ${data.webhook_on_batch ? 'bg-success' : 'bg-secondary'} small">${data.webhook_on_batch ? 'Yes' : 'No'}</span>
+            </div>
+            <div class="d-grid gap-2">
+                <button class="btn btn-sm btn-outline-sentinel" onclick="testDiscordWebhook()" ${!data.discord_configured ? 'disabled' : ''}>
+                    <i class="bi bi-send me-1"></i>Test Discord
+                </button>
+                <button class="btn btn-sm btn-outline-sentinel" onclick="testSlackWebhook()" ${!data.slack_configured ? 'disabled' : ''}>
+                    <i class="bi bi-send me-1"></i>Test Slack
+                </button>
+            </div>
+        `;
+    } catch (e) {
+        document.getElementById('webhook-status').innerHTML = '<span class="text-danger">Failed to load</span>';
+    }
+}
+
+// Test Discord webhook
+async function testDiscordWebhook() {
+    try {
+        const response = await fetch('/api/v1/webhooks/test-discord', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Discord webhook test sent! Check your channel.');
+        } else {
+            alert('Discord test failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to test Discord webhook: ' + e.message);
+    }
+}
+
+// Test Slack webhook
+async function testSlackWebhook() {
+    try {
+        const response = await fetch('/api/v1/webhooks/test-slack', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+            alert('Slack webhook test sent! Check your channel.');
+        } else {
+            alert('Slack test failed: ' + (data.error || 'Unknown error'));
+        }
+    } catch (e) {
+        alert('Failed to test Slack webhook: ' + e.message);
+    }
+}
+
 // Run scheduler manually
 async function runScheduler() {
     if (!confirm('Run reanalysis for all pending watchlist characters?')) return;
@@ -363,5 +451,6 @@ async function toggleUserStatus(characterId, isActive) {
 // Load status on page load
 loadSchedulerStatus();
 loadMLStatus();
+loadWebhookStatus();
 </script>
 {% endblock %}

@@ -3,12 +3,12 @@
 import csv
 import io
 import zipfile
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import AnnotationRepository, ReportRepository, get_session_dependency
@@ -101,6 +101,38 @@ class FlagDiff(BaseModel):
     in_report_2: bool
 
 
+class CharacterMetrics(BaseModel):
+    """Detailed character metrics for comparison."""
+
+    character_age_days: int | None = None
+    security_status: float | None = None
+    kills_total: int = 0
+    kills_90d: int = 0
+    deaths_total: int = 0
+    solo_kills: int = 0
+    awox_kills: int = 0
+    isk_destroyed: float = 0.0
+    isk_lost: float = 0.0
+    danger_ratio: float | None = None
+    gang_ratio: float | None = None
+    corp_count: int = 0
+    recent_corp_changes: int = 0  # Last 6 months
+    avg_corp_tenure_days: float | None = None
+    primary_timezone: str | None = None
+    activity_trend: str | None = None
+
+
+class CorpHistoryDiff(BaseModel):
+    """Corporation history comparison entry."""
+
+    corp_id: int
+    corp_name: str
+    in_char_1: bool
+    in_char_2: bool
+    char_1_joined: str | None = None
+    char_2_joined: str | None = None
+
+
 class CharacterComparison(BaseModel):
     """Comparison result between two characters."""
 
@@ -136,6 +168,15 @@ class CharacterComparison(BaseModel):
     yellow_flags_2: int
     green_flags_1: int
     green_flags_2: int
+
+    # Detailed metrics
+    metrics_1: CharacterMetrics | None = None
+    metrics_2: CharacterMetrics | None = None
+
+    # Corp history comparison
+    shared_corps: list[CorpHistoryDiff] = Field(default_factory=list)
+    unique_corps_1: list[CorpHistoryDiff] = Field(default_factory=list)
+    unique_corps_2: list[CorpHistoryDiff] = Field(default_factory=list)
 
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
@@ -483,6 +524,101 @@ def _get_risk_level(risk: OverallRisk) -> int:
     return 0
 
 
+def _extract_metrics(report: AnalysisReport) -> CharacterMetrics | None:
+    """Extract detailed metrics from report's applicant data."""
+    if not report.applicant_data:
+        return None
+
+    app = report.applicant_data
+    kb = app.killboard
+    activity = app.activity
+
+    # Calculate recent corp changes (last 6 months)
+    recent_corp_changes = 0
+    avg_tenure = None
+    if app.corp_history:
+        six_months_ago = datetime.now(UTC) - timedelta(days=180)
+        for entry in app.corp_history:
+            if entry.joined_at and entry.joined_at > six_months_ago:
+                recent_corp_changes += 1
+
+        # Calculate average tenure
+        tenures = []
+        for entry in app.corp_history:
+            if entry.tenure_days is not None:
+                tenures.append(entry.tenure_days)
+        if tenures:
+            avg_tenure = sum(tenures) / len(tenures)
+
+    return CharacterMetrics(
+        character_age_days=app.character_age_days,
+        security_status=round(app.security_status, 2) if app.security_status else None,
+        kills_total=kb.kills_total,
+        kills_90d=kb.kills_90d,
+        deaths_total=kb.deaths_total,
+        solo_kills=kb.solo_kills,
+        awox_kills=kb.awox_kills,
+        isk_destroyed=kb.isk_destroyed,
+        isk_lost=kb.isk_lost,
+        danger_ratio=kb.danger_ratio,
+        gang_ratio=kb.gang_ratio,
+        corp_count=len(app.corp_history),
+        recent_corp_changes=recent_corp_changes,
+        avg_corp_tenure_days=round(avg_tenure, 1) if avg_tenure else None,
+        primary_timezone=activity.primary_timezone,
+        activity_trend=activity.activity_trend,
+    )
+
+
+def _compare_corp_history(
+    report1: AnalysisReport, report2: AnalysisReport
+) -> tuple[list[CorpHistoryDiff], list[CorpHistoryDiff], list[CorpHistoryDiff]]:
+    """Compare corporation histories between two reports."""
+    shared = []
+    unique_1 = []
+    unique_2 = []
+
+    if not report1.applicant_data or not report2.applicant_data:
+        return shared, unique_1, unique_2
+
+    # Build corp sets
+    corps1 = {
+        entry.corp_id: entry for entry in report1.applicant_data.corp_history
+    }
+    corps2 = {
+        entry.corp_id: entry for entry in report2.applicant_data.corp_history
+    }
+
+    all_corp_ids = set(corps1.keys()) | set(corps2.keys())
+
+    for corp_id in all_corp_ids:
+        entry1 = corps1.get(corp_id)
+        entry2 = corps2.get(corp_id)
+
+        in_1 = entry1 is not None
+        in_2 = entry2 is not None
+
+        corp_name = entry1.corp_name if entry1 else (entry2.corp_name if entry2 else "Unknown")
+
+        diff = CorpHistoryDiff(
+            corp_id=corp_id,
+            corp_name=corp_name,
+            in_char_1=in_1,
+            in_char_2=in_2,
+            char_1_joined=entry1.joined_at.strftime("%Y-%m-%d") if entry1 and entry1.joined_at else None,
+            char_2_joined=entry2.joined_at.strftime("%Y-%m-%d") if entry2 and entry2.joined_at else None,
+        )
+
+        if in_1 and in_2:
+            shared.append(diff)
+        elif in_1:
+            unique_1.append(diff)
+        else:
+            unique_2.append(diff)
+
+    return shared, unique_1, unique_2
+
+
 def _compare_reports(report1: AnalysisReport, report2: AnalysisReport) -> CharacterComparison:
     """Compare two reports and generate comparison result."""
     # Get flags as sets of codes
@@ -541,6 +677,13 @@ def _compare_reports(report1: AnalysisReport, report2: AnalysisReport) -> Charac
     else:
         risk_difference = "2_higher"
 
+    # Extract detailed metrics
+    metrics_1 = _extract_metrics(report1)
+    metrics_2 = _extract_metrics(report2)
+
+    # Compare corp histories
+    shared_corps, unique_corps_1, unique_corps_2 = _compare_corp_history(report1, report2)
+
     return CharacterComparison(
         character_1_id=report1.character_id,
         character_1_name=report1.character_name,
@@ -565,6 +708,11 @@ def _compare_reports(report1: AnalysisReport, report2: AnalysisReport) -> Charac
         yellow_flags_2=report2.yellow_flag_count,
         green_flags_1=report1.green_flag_count,
         green_flags_2=report2.green_flag_count,
+        metrics_1=metrics_1,
+        metrics_2=metrics_2,
+        shared_corps=shared_corps,
+        unique_corps_1=unique_corps_1,
+        unique_corps_2=unique_corps_2,
     )
 
 

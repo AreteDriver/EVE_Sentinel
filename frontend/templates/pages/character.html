@@ -78,6 +78,18 @@
 </div>
 {% endif %}
 
+<!-- Risk History Chart -->
+{% if reports|length > 1 %}
+<div class="card card-sentinel mb-4">
+    <div class="card-header">
+        <i class="bi bi-graph-up me-2"></i>Risk History
+    </div>
+    <div class="card-body">
+        <canvas id="riskChart" height="120"></canvas>
+    </div>
+</div>
+{% endif %}
+
 <!-- Analysis History Timeline -->
 <div class="card card-sentinel">
     <div class="card-header">
@@ -140,4 +152,116 @@
         <i class="bi bi-arrow-left me-1"></i>Back to Reports
     </a>
 </div>
+
+{% if reports|length > 1 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const ctx = document.getElementById('riskChart').getContext('2d');
+
+    // Prepare data from reports (reversed to show oldest first)
+    const reports = [
+        {% for report in reports|reverse %}
+        {
+            date: '{{ report.created_at.strftime("%Y-%m-%d") }}',
+            risk: '{{ report.overall_risk.value }}',
+            confidence: {{ report.confidence }},
+            redFlags: {{ report.red_flag_count }},
+            yellowFlags: {{ report.yellow_flag_count }},
+            greenFlags: {{ report.green_flag_count }},
+        },
+        {% endfor %}
+    ];
+
+    // Map risk to numeric values for chart
+    const riskValues = reports.map(r => {
+        if (r.risk === 'RED') return 3;
+        if (r.risk === 'YELLOW') return 2;
+        return 1;
+    });
+
+    const riskColors = reports.map(r => {
+        if (r.risk === 'RED') return 'rgba(220, 53, 69, 0.8)';
+        if (r.risk === 'YELLOW') return 'rgba(255, 193, 7, 0.8)';
+        return 'rgba(40, 167, 69, 0.8)';
+    });
+
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: reports.map(r => r.date),
+            datasets: [
+                {
+                    label: 'Risk Level',
+                    data: riskValues,
+                    borderColor: 'rgba(233, 69, 96, 1)',
+                    backgroundColor: 'rgba(233, 69, 96, 0.1)',
+                    fill: true,
+                    tension: 0.3,
+                    pointBackgroundColor: riskColors,
+                    pointBorderColor: riskColors,
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                },
+                {
+                    label: 'Confidence',
+                    data: reports.map(r => r.confidence * 3),
+                    borderColor: 'rgba(13, 202, 240, 0.6)',
+                    backgroundColor: 'transparent',
+                    borderDash: [5, 5],
+                    tension: 0.3,
+                    pointRadius: 3,
+                    yAxisID: 'y',
+                },
+            ],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            interaction: {
+                intersect: false,
+                mode: 'index',
+            },
+            plugins: {
+                legend: {
+                    labels: { color: '#a0a0a0' },
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const report = reports[context.dataIndex];
+                            if (context.dataset.label === 'Risk Level') {
+                                return `Risk: ${report.risk} (R:${report.redFlags} Y:${report.yellowFlags} G:${report.greenFlags})`;
+                            }
+                            return `Confidence: ${(report.confidence * 100).toFixed(0)}%`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: { color: '#a0a0a0' },
+                },
+                y: {
+                    min: 0,
+                    max: 3.5,
+                    grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                    ticks: {
+                        color: '#a0a0a0',
+                        stepSize: 1,
+                        callback: function(value) {
+                            if (value === 1) return 'GREEN';
+                            if (value === 2) return 'YELLOW';
+                            if (value === 3) return 'RED';
+                            return '';
+                        }
+                    },
+                },
+            },
+        },
+    });
+});
+</script>
+{% endif %}
 {% endblock %}
