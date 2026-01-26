@@ -12,6 +12,7 @@ from .activity import ActivityAnalyzer
 from .base import BaseAnalyzer
 from .corp_history import CorpHistoryAnalyzer
 from .killboard import KillboardAnalyzer
+from .ml_scorer import MLScorer
 from .wallet import WalletAnalyzer
 
 
@@ -36,6 +37,10 @@ class RiskScorer:
             # AssetsAnalyzer(),
             # SocialAnalyzer(),
         ]
+
+        # Add ML scorer if a trained model is available
+        if MLScorer.is_available():
+            self.analyzers.append(MLScorer())
 
     async def analyze(
         self,
@@ -155,6 +160,17 @@ class RiskScorer:
                 f"Potential undeclared alts detected ({len(report.suspected_alts)}) - "
                 "request disclosure"
             )
+
+        if "ML_RISK_ASSESSMENT" in flag_codes:
+            # Find the ML flag and add context
+            ml_flags = [f for f in report.flags if f.code == "ML_RISK_ASSESSMENT"]
+            if ml_flags and ml_flags[0].evidence:
+                ml_pred = ml_flags[0].evidence.get("ml_prediction", "")
+                ml_conf = ml_flags[0].evidence.get("ml_confidence", 0)
+                if ml_conf >= 0.8:
+                    recommendations.append(
+                        f"ML model has high confidence ({ml_conf:.0%}) in {ml_pred} assessment"
+                    )
 
         if report.overall_risk == OverallRisk.RED:
             recommendations.insert(0, "HIGH RISK - Recommend rejection or extensive vetting")

@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>EVE Sentinel Report - {{ report.character_name }}</title>
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <h1>EVE SENTINEL</h1>
+            <p class="subtitle">Recruitment Analysis Report</p>
+        </div>
+    </header>
+
+    <!-- Character Summary -->
+    <section class="summary">
+        <div class="character-info">
+            <h2>{{ report.character_name }}</h2>
+            <p>Character ID: {{ report.character_id }}</p>
+            {% if report.applicant_data and report.applicant_data.corporation_name %}
+            <p>Corporation: {{ report.applicant_data.corporation_name }}</p>
+            {% endif %}
+            {% if report.applicant_data and report.applicant_data.alliance_name %}
+            <p>Alliance: {{ report.applicant_data.alliance_name }}</p>
+            {% endif %}
+        </div>
+        <div class="risk-assessment">
+            <div class="risk-badge risk-{{ report.overall_risk.value|lower }}">
+                {{ report.overall_risk.value }}
+            </div>
+            <p class="confidence">Confidence: {{ (report.confidence * 100)|int }}%</p>
+        </div>
+    </section>
+
+    <!-- Statistics -->
+    <section class="stats">
+        <div class="stat-box stat-red">
+            <span class="stat-value">{{ report.red_flag_count }}</span>
+            <span class="stat-label">Red Flags</span>
+        </div>
+        <div class="stat-box stat-yellow">
+            <span class="stat-value">{{ report.yellow_flag_count }}</span>
+            <span class="stat-label">Yellow Flags</span>
+        </div>
+        <div class="stat-box stat-green">
+            <span class="stat-value">{{ report.green_flag_count }}</span>
+            <span class="stat-label">Green Flags</span>
+        </div>
+    </section>
+
+    <!-- Recommendations -->
+    {% if report.recommendations %}
+    <section class="recommendations">
+        <h3>Recommendations</h3>
+        <ul>
+            {% for rec in report.recommendations %}
+            <li>{{ rec }}</li>
+            {% endfor %}
+        </ul>
+    </section>
+    {% endif %}
+
+    <!-- Red Flags -->
+    {% if red_flags %}
+    <section class="flags red-flags">
+        <h3>Red Flags</h3>
+        {% for flag in red_flags %}
+        <div class="flag-item flag-red">
+            <div class="flag-header">
+                <span class="flag-code">{{ flag.code }}</span>
+                <span class="flag-category">{{ flag.category.value }}</span>
+            </div>
+            <p class="flag-reason">{{ flag.reason }}</p>
+            {% if flag.evidence %}
+            <div class="flag-evidence">
+                <strong>Evidence:</strong>
+                <ul>
+                    {% for key, value in flag.evidence.items() %}
+                    <li><em>{{ key }}:</em> {{ value }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- Yellow Flags -->
+    {% if yellow_flags %}
+    <section class="flags yellow-flags">
+        <h3>Yellow Flags</h3>
+        {% for flag in yellow_flags %}
+        <div class="flag-item flag-yellow">
+            <div class="flag-header">
+                <span class="flag-code">{{ flag.code }}</span>
+                <span class="flag-category">{{ flag.category.value }}</span>
+            </div>
+            <p class="flag-reason">{{ flag.reason }}</p>
+            {% if flag.evidence %}
+            <div class="flag-evidence">
+                <strong>Evidence:</strong>
+                <ul>
+                    {% for key, value in flag.evidence.items() %}
+                    <li><em>{{ key }}:</em> {{ value }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- Green Flags -->
+    {% if green_flags %}
+    <section class="flags green-flags">
+        <h3>Green Flags</h3>
+        {% for flag in green_flags %}
+        <div class="flag-item flag-green">
+            <div class="flag-header">
+                <span class="flag-code">{{ flag.code }}</span>
+                <span class="flag-category">{{ flag.category.value }}</span>
+            </div>
+            <p class="flag-reason">{{ flag.reason }}</p>
+        </div>
+        {% endfor %}
+    </section>
+    {% endif %}
+
+    <!-- Playstyle -->
+    {% if report.playstyle %}
+    <section class="playstyle">
+        <h3>Playstyle Analysis</h3>
+        <table>
+            {% if report.playstyle.primary %}
+            <tr>
+                <td><strong>Primary:</strong></td>
+                <td>{{ report.playstyle.primary }}</td>
+            </tr>
+            {% endif %}
+            {% if report.playstyle.secondary %}
+            <tr>
+                <td><strong>Secondary:</strong></td>
+                <td>{{ report.playstyle.secondary }}</td>
+            </tr>
+            {% endif %}
+            {% if report.playstyle.roles %}
+            <tr>
+                <td><strong>Roles:</strong></td>
+                <td>{{ report.playstyle.roles|join(", ") }}</td>
+            </tr>
+            {% endif %}
+            {% if report.playstyle.space_preference %}
+            <tr>
+                <td><strong>Space:</strong></td>
+                <td>{{ report.playstyle.space_preference }}</td>
+            </tr>
+            {% endif %}
+        </table>
+    </section>
+    {% endif %}
+
+    <!-- Suspected Alts -->
+    {% if report.suspected_alts %}
+    <section class="alts">
+        <h3>Suspected Alts</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Character</th>
+                    <th>Detection Method</th>
+                    <th>Confidence</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for alt in report.suspected_alts %}
+                <tr>
+                    <td>{{ alt.character_name }}</td>
+                    <td>{{ alt.detection_method }}</td>
+                    <td>{{ (alt.confidence * 100)|int }}%</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </section>
+    {% endif %}
+
+    <!-- Report Metadata -->
+    <section class="metadata">
+        <h3>Report Details</h3>
+        <table>
+            <tr>
+                <td><strong>Report ID:</strong></td>
+                <td>{{ report.report_id }}</td>
+            </tr>
+            <tr>
+                <td><strong>Generated:</strong></td>
+                <td>{{ report.created_at.strftime('%Y-%m-%d %H:%M UTC') }}</td>
+            </tr>
+            {% if report.requested_by %}
+            <tr>
+                <td><strong>Requested By:</strong></td>
+                <td>{{ report.requested_by }}</td>
+            </tr>
+            {% endif %}
+            <tr>
+                <td><strong>Analyzers:</strong></td>
+                <td>{{ report.analyzers_run|join(", ") }}</td>
+            </tr>
+            {% if report.processing_time_ms %}
+            <tr>
+                <td><strong>Processing Time:</strong></td>
+                <td>{{ report.processing_time_ms }}ms</td>
+            </tr>
+            {% endif %}
+        </table>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>Generated by EVE Sentinel</p>
+        <p class="disclaimer">
+            EVE Online and the EVE logo are registered trademarks of CCP hf.
+            This is a fan project, not affiliated with or endorsed by CCP hf.
+        </p>
+    </footer>
+</body>
+</html>

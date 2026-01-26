@@ -1,0 +1,274 @@
+/* EVE Sentinel PDF Report Styles */
+
+/* Page setup */
+@page {
+    size: A4;
+    margin: 2cm 1.5cm;
+    @bottom-center {
+        content: "Page " counter(page) " of " counter(pages);
+        font-size: 9pt;
+        color: #666;
+    }
+}
+
+/* Base styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 10pt;
+    line-height: 1.4;
+    color: #1a1a2e;
+    margin: 0;
+    padding: 0;
+}
+
+/* Header */
+header {
+    text-align: center;
+    padding-bottom: 15px;
+    border-bottom: 3px solid #e94560;
+    margin-bottom: 20px;
+}
+
+header h1 {
+    margin: 0;
+    color: #e94560;
+    font-size: 24pt;
+    letter-spacing: 4px;
+}
+
+header .subtitle {
+    margin: 5px 0 0 0;
+    color: #666;
+    font-size: 12pt;
+}
+
+/* Summary section */
+.summary {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    padding: 15px;
+    background: #f8f9fa;
+    border-radius: 8px;
+}
+
+.character-info h2 {
+    margin: 0 0 8px 0;
+    font-size: 16pt;
+    color: #1a1a2e;
+}
+
+.character-info p {
+    margin: 3px 0;
+    color: #555;
+}
+
+.risk-assessment {
+    text-align: center;
+}
+
+.risk-badge {
+    display: inline-block;
+    padding: 10px 25px;
+    border-radius: 6px;
+    font-size: 14pt;
+    font-weight: bold;
+    color: white;
+}
+
+.risk-red { background: #dc3545; }
+.risk-yellow { background: #ffc107; color: #1a1a2e; }
+.risk-green { background: #28a745; }
+.risk-unknown { background: #6c757d; }
+
+.confidence {
+    margin: 8px 0 0 0;
+    font-size: 9pt;
+    color: #666;
+}
+
+/* Statistics */
+.stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 25px;
+}
+
+.stat-box {
+    text-align: center;
+    padding: 12px 20px;
+    border-radius: 6px;
+    min-width: 100px;
+}
+
+.stat-red { background: #ffebee; border: 2px solid #dc3545; }
+.stat-yellow { background: #fff8e1; border: 2px solid #ffc107; }
+.stat-green { background: #e8f5e9; border: 2px solid #28a745; }
+
+.stat-value {
+    display: block;
+    font-size: 20pt;
+    font-weight: bold;
+}
+
+.stat-red .stat-value { color: #dc3545; }
+.stat-yellow .stat-value { color: #b8860b; }
+.stat-green .stat-value { color: #28a745; }
+
+.stat-label {
+    display: block;
+    font-size: 8pt;
+    color: #666;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* Recommendations */
+.recommendations {
+    background: #e3f2fd;
+    padding: 15px 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    border-left: 4px solid #2196f3;
+}
+
+.recommendations h3 {
+    margin: 0 0 10px 0;
+    color: #1565c0;
+    font-size: 12pt;
+}
+
+.recommendations ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.recommendations li {
+    margin-bottom: 6px;
+}
+
+/* Flags sections */
+.flags {
+    margin-bottom: 20px;
+    page-break-inside: avoid;
+}
+
+.flags h3 {
+    margin: 0 0 12px 0;
+    padding-bottom: 6px;
+    font-size: 12pt;
+}
+
+.red-flags h3 { color: #dc3545; border-bottom: 2px solid #dc3545; }
+.yellow-flags h3 { color: #b8860b; border-bottom: 2px solid #ffc107; }
+.green-flags h3 { color: #28a745; border-bottom: 2px solid #28a745; }
+
+.flag-item {
+    padding: 10px 12px;
+    margin-bottom: 10px;
+    border-radius: 6px;
+    page-break-inside: avoid;
+}
+
+.flag-red { background: #ffebee; border-left: 4px solid #dc3545; }
+.flag-yellow { background: #fff8e1; border-left: 4px solid #ffc107; }
+.flag-green { background: #e8f5e9; border-left: 4px solid #28a745; }
+
+.flag-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 6px;
+}
+
+.flag-code {
+    font-weight: bold;
+    font-size: 10pt;
+}
+
+.flag-category {
+    font-size: 8pt;
+    color: #666;
+    text-transform: uppercase;
+    background: rgba(0,0,0,0.05);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.flag-reason {
+    margin: 0;
+    color: #333;
+}
+
+.flag-evidence {
+    margin-top: 8px;
+    padding: 8px;
+    background: rgba(255,255,255,0.5);
+    border-radius: 4px;
+    font-size: 9pt;
+}
+
+.flag-evidence ul {
+    margin: 5px 0 0 0;
+    padding-left: 15px;
+}
+
+.flag-evidence li {
+    margin-bottom: 3px;
+}
+
+/* Playstyle and Alts tables */
+.playstyle, .alts, .metadata {
+    margin-bottom: 20px;
+}
+
+.playstyle h3, .alts h3, .metadata h3 {
+    margin: 0 0 10px 0;
+    font-size: 11pt;
+    color: #1a1a2e;
+    border-bottom: 1px solid #ddd;
+    padding-bottom: 5px;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 9pt;
+}
+
+table td, table th {
+    padding: 6px 10px;
+    text-align: left;
+    border-bottom: 1px solid #eee;
+}
+
+table th {
+    background: #f8f9fa;
+    font-weight: bold;
+    color: #555;
+}
+
+.metadata table td:first-child {
+    width: 120px;
+    color: #666;
+}
+
+/* Footer */
+footer {
+    margin-top: 30px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+    text-align: center;
+    font-size: 8pt;
+    color: #888;
+}
+
+footer p {
+    margin: 5px 0;
+}
+
+.disclaimer {
+    font-size: 7pt;
+    color: #aaa;
+}

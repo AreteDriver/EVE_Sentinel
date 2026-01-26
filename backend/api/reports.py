@@ -3,10 +3,12 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import ReportRepository, get_session_dependency
 from backend.models.report import AnalysisReport, OverallRisk, ReportSummary
+from backend.services import PDFGenerator
 
 router = APIRouter(prefix="/api/v1/reports", tags=["reports"])
 
@@ -82,6 +84,35 @@ async def get_report(
         raise HTTPException(status_code=404, detail="Report not found")
 
     return report
+
+
+@router.get("/{report_id}/pdf")
+async def get_report_pdf(
+    report_id: UUID,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> Response:
+    """
+    Download report as PDF.
+
+    Returns the analysis report formatted as a professional PDF document.
+    """
+    repo = ReportRepository(session)
+    report = await repo.get_by_id(report_id)
+
+    if not report:
+        raise HTTPException(status_code=404, detail="Report not found")
+
+    pdf_generator = PDFGenerator()
+    pdf_content = pdf_generator.generate(report)
+    filename = pdf_generator.generate_filename(report)
+
+    return Response(
+        content=pdf_content,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+        },
+    )
 
 
 @router.delete("/{report_id}", status_code=204)
