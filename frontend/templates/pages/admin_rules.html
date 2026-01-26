@@ -1,0 +1,405 @@
+{% extends "base.html" %}
+
+{% block title %}Flag Rules - EVE Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div class="d-flex justify-content-between align-items-center">
+        <div>
+            <h1><i class="bi bi-flag-fill me-2"></i>Custom Flag Rules</h1>
+            <p class="text-muted mb-0">Define custom rules for risk detection</p>
+        </div>
+        <div>
+            <a href="/admin" class="btn btn-outline-secondary me-2">
+                <i class="bi bi-arrow-left me-1"></i>Back to Admin
+            </a>
+            <button class="btn btn-sentinel" onclick="showCreateModal()">
+                <i class="bi bi-plus-lg me-1"></i>Create Rule
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Rules Table -->
+<div class="card card-sentinel">
+    <div class="card-body p-0">
+        <table class="table table-sentinel mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Code</th>
+                    <th>Severity</th>
+                    <th>Condition</th>
+                    <th>Message</th>
+                    <th>Priority</th>
+                    <th>Status</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody id="rules-table">
+                {% for rule in rules %}
+                <tr id="rule-{{ rule.id }}">
+                    <td>
+                        <strong>{{ rule.name }}</strong>
+                        {% if rule.description %}
+                        <br><small class="text-muted">{{ rule.description[:50] }}{% if rule.description|length > 50 %}...{% endif %}</small>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ rule.code }}</code></td>
+                    <td>
+                        {% if rule.severity == 'RED' %}
+                        <span class="badge bg-danger">RED</span>
+                        {% elif rule.severity == 'YELLOW' %}
+                        <span class="badge bg-warning text-dark">YELLOW</span>
+                        {% else %}
+                        <span class="badge bg-success">GREEN</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <code>{{ rule.condition_type }}</code>
+                        <br><small class="text-muted">{{ rule.condition_params }}</small>
+                    </td>
+                    <td><small>{{ rule.flag_message[:40] }}{% if rule.flag_message|length > 40 %}...{% endif %}</small></td>
+                    <td>{{ rule.priority }}</td>
+                    <td>
+                        {% if rule.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <button class="btn btn-outline-sentinel" onclick="toggleRule({{ rule.id }})" title="Toggle">
+                                <i class="bi bi-{{ 'pause' if rule.is_active else 'play' }}"></i>
+                            </button>
+                            <button class="btn btn-outline-sentinel" onclick="editRule({{ rule.id }})" title="Edit">
+                                <i class="bi bi-pencil"></i>
+                            </button>
+                            <button class="btn btn-outline-danger" onclick="deleteRule({{ rule.id }})" title="Delete">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="8" class="text-center py-5">
+                        <i class="bi bi-flag" style="font-size: 3rem; opacity: 0.3;"></i>
+                        <p class="mb-2 mt-3">No custom rules defined</p>
+                        <button class="btn btn-sentinel" onclick="showCreateModal()">Create First Rule</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Condition Types Reference -->
+<div class="card card-sentinel mt-4">
+    <div class="card-header">
+        <i class="bi bi-info-circle me-2"></i>Available Condition Types
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <h6>Membership Checks</h6>
+                <ul class="small">
+                    <li><code>corp_member</code> - Currently in specific corporation(s)</li>
+                    <li><code>alliance_member</code> - Currently in specific alliance(s)</li>
+                    <li><code>corp_history</code> - Was ever in specific corporation(s)</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6>Numeric Comparisons</h6>
+                <ul class="small">
+                    <li><code>character_age</code> - Character age in days (lt, gt, eq)</li>
+                    <li><code>security_status</code> - Security status (-10 to 10)</li>
+                    <li><code>kill_count</code> - Total kills</li>
+                    <li><code>death_count</code> - Total deaths</li>
+                    <li><code>zkill_danger</code> - zKillboard danger ratio (0-100)</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Create/Edit Modal -->
+<div class="modal fade" id="ruleModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content" style="background: var(--eve-surface); border-color: var(--eve-border);">
+            <div class="modal-header" style="border-color: var(--eve-border);">
+                <h5 class="modal-title" id="modal-title" style="color: var(--eve-text);">
+                    <i class="bi bi-flag me-2"></i>Create Rule
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="rule-form">
+                    <input type="hidden" id="rule-id">
+
+                    <div class="row g-3">
+                        <div class="col-md-8">
+                            <label class="form-label">Rule Name</label>
+                            <input type="text" class="form-control" id="rule-name" required
+                                   style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Code</label>
+                            <input type="text" class="form-control" id="rule-code" required
+                                   placeholder="UNIQUE_CODE"
+                                   style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                            <small class="text-muted">Unique identifier (uppercase)</small>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label class="form-label">Description</label>
+                        <input type="text" class="form-control" id="rule-description"
+                               style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                    </div>
+
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Severity</label>
+                            <select class="form-select" id="rule-severity" required
+                                    style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                                <option value="RED">RED - High Risk</option>
+                                <option value="YELLOW">YELLOW - Moderate Risk</option>
+                                <option value="GREEN">GREEN - Positive Indicator</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Condition Type</label>
+                            <select class="form-select" id="rule-condition-type" required onchange="updateParamsUI()"
+                                    style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                                <option value="">Select...</option>
+                                <option value="corp_member">Corporation Member</option>
+                                <option value="alliance_member">Alliance Member</option>
+                                <option value="corp_history">Corporation History</option>
+                                <option value="character_age">Character Age</option>
+                                <option value="security_status">Security Status</option>
+                                <option value="kill_count">Kill Count</option>
+                                <option value="death_count">Death Count</option>
+                                <option value="zkill_danger">zKill Danger Ratio</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Priority</label>
+                            <input type="number" class="form-control" id="rule-priority" value="100" min="1" max="1000"
+                                   style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                            <small class="text-muted">Lower = higher priority</small>
+                        </div>
+                    </div>
+
+                    <!-- Dynamic params section -->
+                    <div id="params-section" class="mt-3" style="display: none;">
+                        <label class="form-label">Condition Parameters</label>
+                        <div id="params-fields"></div>
+                    </div>
+
+                    <div class="mb-3 mt-3">
+                        <label class="form-label">Flag Message</label>
+                        <textarea class="form-control" id="rule-message" rows="2" required
+                                  placeholder="Message shown when this rule triggers..."
+                                  style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer" style="border-color: var(--eve-border);">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sentinel" onclick="saveRule()">Save Rule</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let ruleModal;
+let editingRuleId = null;
+
+document.addEventListener('DOMContentLoaded', function() {
+    ruleModal = new bootstrap.Modal(document.getElementById('ruleModal'));
+});
+
+function showCreateModal() {
+    editingRuleId = null;
+    document.getElementById('modal-title').innerHTML = '<i class="bi bi-flag me-2"></i>Create Rule';
+    document.getElementById('rule-form').reset();
+    document.getElementById('rule-priority').value = 100;
+    document.getElementById('params-section').style.display = 'none';
+    ruleModal.show();
+}
+
+async function editRule(ruleId) {
+    try {
+        const response = await fetch(`/api/v1/rules/${ruleId}`);
+        const rule = await response.json();
+
+        editingRuleId = ruleId;
+        document.getElementById('modal-title').innerHTML = '<i class="bi bi-pencil me-2"></i>Edit Rule';
+        document.getElementById('rule-id').value = rule.id;
+        document.getElementById('rule-name').value = rule.name;
+        document.getElementById('rule-code').value = rule.code;
+        document.getElementById('rule-code').disabled = true; // Can't change code
+        document.getElementById('rule-description').value = rule.description || '';
+        document.getElementById('rule-severity').value = rule.severity;
+        document.getElementById('rule-condition-type').value = rule.condition_type;
+        document.getElementById('rule-priority').value = rule.priority;
+        document.getElementById('rule-message').value = rule.flag_message;
+
+        updateParamsUI();
+
+        // Fill in params
+        const params = rule.condition_params;
+        if (params.corp_ids) {
+            document.getElementById('param-ids').value = params.corp_ids.join(', ');
+        } else if (params.alliance_ids) {
+            document.getElementById('param-ids').value = params.alliance_ids.join(', ');
+        } else {
+            if (params.operator) document.getElementById('param-operator').value = params.operator;
+            if (params.days) document.getElementById('param-value').value = params.days;
+            if (params.value !== undefined) document.getElementById('param-value').value = params.value;
+            if (params.count) document.getElementById('param-value').value = params.count;
+        }
+
+        ruleModal.show();
+    } catch (e) {
+        alert('Failed to load rule: ' + e.message);
+    }
+}
+
+function updateParamsUI() {
+    const conditionType = document.getElementById('rule-condition-type').value;
+    const paramsSection = document.getElementById('params-section');
+    const paramsFields = document.getElementById('params-fields');
+
+    if (!conditionType) {
+        paramsSection.style.display = 'none';
+        return;
+    }
+
+    paramsSection.style.display = 'block';
+
+    if (['corp_member', 'alliance_member', 'corp_history'].includes(conditionType)) {
+        paramsFields.innerHTML = `
+            <input type="text" class="form-control" id="param-ids"
+                   placeholder="Enter IDs separated by commas (e.g., 98000001, 98000002)"
+                   style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+            <small class="text-muted">Corporation or Alliance IDs</small>
+        `;
+    } else {
+        const valueLabel = {
+            'character_age': 'Days',
+            'security_status': 'Value (-10 to 10)',
+            'kill_count': 'Count',
+            'death_count': 'Count',
+            'zkill_danger': 'Ratio (0-100)',
+        }[conditionType];
+
+        paramsFields.innerHTML = `
+            <div class="row g-2">
+                <div class="col-md-4">
+                    <select class="form-select" id="param-operator"
+                            style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                        <option value="lt">Less than</option>
+                        <option value="gt">Greater than</option>
+                        <option value="eq">Equal to</option>
+                    </select>
+                </div>
+                <div class="col-md-8">
+                    <input type="number" class="form-control" id="param-value" placeholder="${valueLabel}"
+                           style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                </div>
+            </div>
+        `;
+    }
+}
+
+function getConditionParams() {
+    const conditionType = document.getElementById('rule-condition-type').value;
+
+    if (['corp_member', 'alliance_member', 'corp_history'].includes(conditionType)) {
+        const idsStr = document.getElementById('param-ids').value;
+        const ids = idsStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n));
+
+        if (conditionType === 'alliance_member') {
+            return { alliance_ids: ids };
+        }
+        return { corp_ids: ids };
+    } else {
+        const operator = document.getElementById('param-operator').value;
+        const value = parseFloat(document.getElementById('param-value').value);
+
+        if (conditionType === 'character_age') {
+            return { operator, days: value };
+        } else if (['kill_count', 'death_count'].includes(conditionType)) {
+            return { operator, count: value };
+        }
+        return { operator, value };
+    }
+}
+
+async function saveRule() {
+    const data = {
+        name: document.getElementById('rule-name').value,
+        code: document.getElementById('rule-code').value,
+        description: document.getElementById('rule-description').value || null,
+        severity: document.getElementById('rule-severity').value,
+        condition_type: document.getElementById('rule-condition-type').value,
+        condition_params: getConditionParams(),
+        flag_message: document.getElementById('rule-message').value,
+        priority: parseInt(document.getElementById('rule-priority').value),
+    };
+
+    try {
+        let response;
+        if (editingRuleId) {
+            delete data.code; // Can't update code
+            response = await fetch(`/api/v1/rules/${editingRuleId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+        } else {
+            response = await fetch('/api/v1/rules', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+            });
+        }
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.detail || 'Failed to save');
+        }
+
+        ruleModal.hide();
+        location.reload();
+    } catch (e) {
+        alert('Failed to save rule: ' + e.message);
+    }
+}
+
+async function toggleRule(ruleId) {
+    try {
+        await fetch(`/api/v1/rules/${ruleId}/toggle`, { method: 'POST' });
+        location.reload();
+    } catch (e) {
+        alert('Failed to toggle rule: ' + e.message);
+    }
+}
+
+async function deleteRule(ruleId) {
+    if (!confirm('Are you sure you want to delete this rule?')) return;
+
+    try {
+        await fetch(`/api/v1/rules/${ruleId}`, { method: 'DELETE' });
+        location.reload();
+    } catch (e) {
+        alert('Failed to delete rule: ' + e.message);
+    }
+}
+</script>
+{% endblock %}

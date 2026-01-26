@@ -1,0 +1,367 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Dashboard - EVE Sentinel{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1><i class="bi bi-gear-fill me-2"></i>Admin Dashboard</h1>
+    <p class="text-muted mb-0">System management and monitoring</p>
+</div>
+
+<!-- Stats Overview -->
+<div class="row g-4 mb-4">
+    <div class="col-md-2">
+        <div class="card card-sentinel text-center">
+            <div class="card-body">
+                <div class="h2 mb-0" style="color: var(--eve-accent);">{{ stats.total_reports }}</div>
+                <small class="text-muted">Total Reports</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel text-center">
+            <div class="card-body">
+                <div class="h2 mb-0" style="color: var(--eve-accent);">{{ stats.total_users }}</div>
+                <small class="text-muted">Total Users</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel text-center">
+            <div class="card-body">
+                <div class="h2 mb-0 text-success">{{ stats.active_users }}</div>
+                <small class="text-muted">Active Users</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel text-center">
+            <div class="card-body">
+                <div class="h2 mb-0" style="color: var(--eve-accent);">{{ stats.watchlist_count }}</div>
+                <small class="text-muted">Watchlist</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel text-center">
+            <div class="card-body">
+                <div class="h2 mb-0" style="color: var(--eve-accent);">{{ stats.total_rules }}</div>
+                <small class="text-muted">Flag Rules</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-2">
+        <div class="card card-sentinel text-center">
+            <div class="card-body">
+                <div class="h2 mb-0 text-success">{{ stats.active_rules }}</div>
+                <small class="text-muted">Active Rules</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Quick Actions -->
+    <div class="col-lg-4">
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-lightning-fill me-2"></i>Quick Actions
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="/admin/rules" class="btn btn-outline-sentinel">
+                        <i class="bi bi-flag me-2"></i>Manage Flag Rules
+                    </a>
+                    <button class="btn btn-outline-sentinel" onclick="runScheduler()">
+                        <i class="bi bi-play-circle me-2"></i>Run Reanalysis Now
+                    </button>
+                    <button class="btn btn-outline-sentinel" onclick="trainMLModel()">
+                        <i class="bi bi-robot me-2"></i>Train ML Model
+                    </button>
+                    <a href="/api/v1/reports/export/csv?limit=1000" class="btn btn-outline-sentinel">
+                        <i class="bi bi-download me-2"></i>Export All Reports
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scheduler Status -->
+        <div class="card card-sentinel mt-4">
+            <div class="card-header">
+                <i class="bi bi-clock-history me-2"></i>Scheduler Status
+            </div>
+            <div class="card-body" id="scheduler-status">
+                <div class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <span class="ms-2">Loading...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- ML Model Status -->
+        <div class="card card-sentinel mt-4">
+            <div class="card-header">
+                <i class="bi bi-robot me-2"></i>ML Model Status
+            </div>
+            <div class="card-body" id="ml-status">
+                <div class="text-center py-3">
+                    <div class="spinner-border spinner-border-sm" role="status"></div>
+                    <span class="ms-2">Loading...</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Users -->
+    <div class="col-lg-4">
+        <div class="card card-sentinel">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="bi bi-people me-2"></i>Users</span>
+                <span class="badge bg-secondary">{{ stats.total_users }}</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-sentinel mb-0">
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for user in users %}
+                            <tr>
+                                <td>
+                                    <strong>{{ user.character_name }}</strong>
+                                    <br><small class="text-muted">{{ user.character_id }}</small>
+                                </td>
+                                <td>
+                                    <select class="form-select form-select-sm" style="width: auto; background: var(--eve-surface); border-color: var(--eve-border); color: var(--eve-text);"
+                                            onchange="updateUserRole({{ user.character_id }}, this.value)">
+                                        <option value="viewer" {% if user.role == 'viewer' %}selected{% endif %}>Viewer</option>
+                                        <option value="recruiter" {% if user.role == 'recruiter' %}selected{% endif %}>Recruiter</option>
+                                        <option value="admin" {% if user.role == 'admin' %}selected{% endif %}>Admin</option>
+                                    </select>
+                                </td>
+                                <td>
+                                    {% if user.is_active %}
+                                    <span class="badge bg-success">Active</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-secondary" onclick="toggleUserStatus({{ user.character_id }}, {{ 'false' if user.is_active else 'true' }})">
+                                        <i class="bi bi-{{ 'pause' if user.is_active else 'play' }}"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Audit Logs -->
+    <div class="col-lg-4">
+        <div class="card card-sentinel">
+            <div class="card-header">
+                <i class="bi bi-journal-text me-2"></i>Recent Activity
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush" style="max-height: 500px; overflow-y: auto;">
+                    {% for log in recent_logs %}
+                    <div class="list-group-item" style="background: var(--eve-surface); border-color: var(--eve-border);">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong style="color: var(--eve-text);">{{ log.action }}</strong>
+                                {% if log.target_name %}
+                                <br><small class="text-muted">{{ log.target_name }}</small>
+                                {% endif %}
+                            </div>
+                            <small class="text-muted">{{ log.created_at.strftime('%H:%M') }}</small>
+                        </div>
+                        <small class="text-muted">
+                            {% if log.user_name %}{{ log.user_name }}{% else %}System{% endif %}
+                            - {{ log.created_at.strftime('%Y-%m-%d') }}
+                        </small>
+                    </div>
+                    {% else %}
+                    <div class="list-group-item text-center text-muted" style="background: var(--eve-surface);">
+                        No recent activity
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Flag Rules Preview -->
+<div class="card card-sentinel mt-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-flag me-2"></i>Custom Flag Rules</span>
+        <a href="/admin/rules" class="btn btn-sm btn-outline-sentinel">Manage Rules</a>
+    </div>
+    <div class="card-body p-0">
+        <table class="table table-sentinel mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Code</th>
+                    <th>Severity</th>
+                    <th>Condition</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rule in rules[:5] %}
+                <tr>
+                    <td><strong>{{ rule.name }}</strong></td>
+                    <td><code>{{ rule.code }}</code></td>
+                    <td>
+                        {% if rule.severity == 'RED' %}
+                        <span class="badge bg-danger">RED</span>
+                        {% elif rule.severity == 'YELLOW' %}
+                        <span class="badge bg-warning text-dark">YELLOW</span>
+                        {% else %}
+                        <span class="badge bg-success">GREEN</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ rule.condition_type }}</code></td>
+                    <td>
+                        {% if rule.is_active %}
+                        <span class="badge bg-success">Active</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inactive</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5" class="text-center text-muted py-4">
+                        No custom rules defined. <a href="/admin/rules">Create one</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+// Load scheduler status
+async function loadSchedulerStatus() {
+    try {
+        const response = await fetch('/api/v1/scheduler/status');
+        const data = await response.json();
+
+        document.getElementById('scheduler-status').innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>Status</span>
+                <span class="badge ${data.running ? 'bg-success' : 'bg-secondary'}">${data.running ? 'Running' : 'Stopped'}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>Interval</span>
+                <span>${data.interval_minutes} minutes</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Max per run</span>
+                <span>${data.max_per_run}</span>
+            </div>
+        `;
+    } catch (e) {
+        document.getElementById('scheduler-status').innerHTML = '<span class="text-danger">Failed to load</span>';
+    }
+}
+
+// Load ML model status
+async function loadMLStatus() {
+    try {
+        const response = await fetch('/api/v1/ml/status');
+        const data = await response.json();
+
+        document.getElementById('ml-status').innerHTML = `
+            <div class="d-flex justify-content-between align-items-center mb-2">
+                <span>Model</span>
+                <span class="badge ${data.available ? 'bg-success' : 'bg-warning'}">${data.available ? 'Trained' : 'Not Trained'}</span>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Features</span>
+                <span>${data.feature_count}</span>
+            </div>
+        `;
+    } catch (e) {
+        document.getElementById('ml-status').innerHTML = '<span class="text-danger">Failed to load</span>';
+    }
+}
+
+// Run scheduler manually
+async function runScheduler() {
+    if (!confirm('Run reanalysis for all pending watchlist characters?')) return;
+
+    try {
+        const response = await fetch('/api/v1/scheduler/run', { method: 'POST' });
+        const data = await response.json();
+        alert(`Reanalysis complete: ${data.success} success, ${data.failed} failed`);
+    } catch (e) {
+        alert('Failed to run scheduler: ' + e.message);
+    }
+}
+
+// Train ML model
+async function trainMLModel() {
+    if (!confirm('Train ML model on historical reports? This may take a moment.')) return;
+
+    try {
+        const response = await fetch('/api/v1/ml/train', { method: 'POST' });
+        const data = await response.json();
+
+        if (data.success) {
+            alert(`Model trained successfully!\nAccuracy: ${(data.accuracy * 100).toFixed(1)}%\nSamples: ${data.training_samples}`);
+            loadMLStatus();
+        } else {
+            alert('Training failed: ' + data.message);
+        }
+    } catch (e) {
+        alert('Failed to train model: ' + e.message);
+    }
+}
+
+// Update user role
+async function updateUserRole(characterId, role) {
+    try {
+        await fetch(`/api/v1/users/${characterId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: role }),
+        });
+    } catch (e) {
+        alert('Failed to update role: ' + e.message);
+        location.reload();
+    }
+}
+
+// Toggle user status
+async function toggleUserStatus(characterId, isActive) {
+    try {
+        await fetch(`/api/v1/users/${characterId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ is_active: isActive }),
+        });
+        location.reload();
+    } catch (e) {
+        alert('Failed to update status: ' + e.message);
+    }
+}
+
+// Load status on page load
+loadSchedulerStatus();
+loadMLStatus();
+</script>
+{% endblock %}

@@ -76,5 +76,25 @@
                 </a>
             </li>
         </ul>
+
+        <hr class="my-3" style="border-color: var(--eve-border);">
+
+        <h6 class="sidebar-heading d-flex justify-content-between align-items-center px-3 mb-2 text-muted text-uppercase">
+            <span>System</span>
+        </h6>
+        <ul class="nav flex-column mb-2">
+            <li class="nav-item">
+                <a class="nav-link {% if request.url.path == '/settings' %}active{% endif %}" href="/settings">
+                    <i class="bi bi-gear"></i>
+                    Settings
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if '/admin' in request.url.path %}active{% endif %}" href="/admin">
+                    <i class="bi bi-shield-lock"></i>
+                    Admin
+                </a>
+            </li>
+        </ul>
     </div>
 </nav>

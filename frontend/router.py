@@ -260,6 +260,86 @@ async def fleet_analysis_page(request: Request) -> HTMLResponse:
     )
 
 
+@router.get("/admin", response_class=HTMLResponse)
+async def admin_dashboard(
+    request: Request,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> HTMLResponse:
+    """Admin dashboard page."""
+    from backend.database import (
+        AuditLogRepository,
+        FlagRuleRepository,
+        UserRepository,
+        WatchlistRepository,
+    )
+
+    repo = ReportRepository(session)
+    user_repo = UserRepository(session)
+    watchlist_repo = WatchlistRepository(session)
+    audit_repo = AuditLogRepository(session)
+    rules_repo = FlagRuleRepository(session)
+
+    # Get stats
+    total_reports = await repo.count_reports()
+    total_users = await user_repo.count_users()
+    active_users = await user_repo.count_users(is_active=True)
+    watchlist_count = await watchlist_repo.count()
+    rules = await rules_repo.list_rules()
+    active_rules = len([r for r in rules if r.is_active])
+
+    # Get recent audit logs
+    recent_logs = await audit_repo.list_logs(limit=10)
+
+    # Get users
+    users = await user_repo.list_users(limit=20)
+
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/admin.html",
+        context={
+            "stats": {
+                "total_reports": total_reports,
+                "total_users": total_users,
+                "active_users": active_users,
+                "watchlist_count": watchlist_count,
+                "total_rules": len(rules),
+                "active_rules": active_rules,
+            },
+            "recent_logs": recent_logs,
+            "users": users,
+            "rules": rules,
+        },
+    )
+
+
+@router.get("/admin/rules", response_class=HTMLResponse)
+async def admin_rules_page(
+    request: Request,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> HTMLResponse:
+    """Flag rules management page."""
+    from backend.database import FlagRuleRepository
+
+    repo = FlagRuleRepository(session)
+    rules = await repo.list_rules()
+
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/admin_rules.html",
+        context={"rules": rules},
+    )
+
+
+@router.get("/settings", response_class=HTMLResponse)
+async def settings_page(request: Request) -> HTMLResponse:
+    """User settings page."""
+    return templates.TemplateResponse(
+        request=request,
+        name="pages/settings.html",
+        context={},
+    )
+
+
 @router.get("/share/{token}", response_class=HTMLResponse)
 async def shared_report_view(
     request: Request,
