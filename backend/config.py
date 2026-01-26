@@ -75,6 +75,16 @@ class Settings(BaseSettings):
     discord_guild_ids: str = ""  # Comma-separated guild IDs for slash commands (optional)
     discord_admin_role_id: str | None = None  # Role ID that can use admin commands
 
+    # Email (SMTP)
+    smtp_enabled: bool = False
+    smtp_host: str = "smtp.gmail.com"
+    smtp_port: int = 587
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_from_email: str | None = None
+    smtp_from_name: str = "EVE Sentinel"
+    smtp_use_tls: bool = True
+
     def get_discord_guild_ids(self) -> list[int]:
         """Parse Discord guild IDs from comma-separated string."""
         if not self.discord_guild_ids:

@@ -69,6 +69,34 @@
     </div>
 </div>
 
+<!-- Bulk Actions Bar (hidden by default) -->
+<div id="bulk-actions-bar" class="card card-sentinel mb-3 d-none" style="background: var(--eve-surface); border-color: var(--eve-accent);">
+    <div class="card-body py-2">
+        <div class="d-flex justify-content-between align-items-center">
+            <div class="d-flex align-items-center gap-3">
+                <span class="text-muted"><strong id="selected-count">0</strong> reports selected</span>
+                <div class="btn-group">
+                    <button class="btn btn-sm btn-outline-sentinel" onclick="bulkExportCSV()">
+                        <i class="bi bi-file-earmark-spreadsheet me-1"></i>Export CSV
+                    </button>
+                    <button class="btn btn-sm btn-outline-sentinel" onclick="bulkExportPDF()">
+                        <i class="bi bi-file-earmark-pdf me-1"></i>Export PDF
+                    </button>
+                    <button class="btn btn-sm btn-outline-sentinel" onclick="showTagModal()">
+                        <i class="bi bi-tag me-1"></i>Add Tag
+                    </button>
+                    <button class="btn btn-sm btn-outline-danger" onclick="bulkDelete()">
+                        <i class="bi bi-trash me-1"></i>Delete
+                    </button>
+                </div>
+            </div>
+            <button class="btn btn-sm btn-outline-secondary" onclick="clearSelection()">
+                <i class="bi bi-x-lg me-1"></i>Clear Selection
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Quick Filters -->
 <div class="card card-sentinel mb-4">
     <div class="card-body py-3">
@@ -142,4 +170,238 @@
 <div id="reports-container">
     {% include "partials/reports_table.html" %}
 </div>
+
+<!-- Tag Modal -->
+<div class="modal fade" id="tagModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content" style="background: var(--eve-surface); border-color: var(--eve-border);">
+            <div class="modal-header" style="border-color: var(--eve-border);">
+                <h5 class="modal-title" style="color: var(--eve-text);">
+                    <i class="bi bi-tag me-2"></i>Add Tag to Selected Reports
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="mb-3">
+                    <label for="tag-input" class="form-label">Tag Name</label>
+                    <input type="text" class="form-control" id="tag-input" placeholder="e.g., approved, rejected, pending"
+                           style="background: var(--eve-bg); border-color: var(--eve-border); color: var(--eve-text);">
+                </div>
+                <div id="existing-tags" class="mb-3">
+                    <label class="form-label small text-muted">Or select existing tag:</label>
+                    <div id="tag-buttons"></div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-color: var(--eve-border);">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sentinel" onclick="applyTag()">Apply Tag</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Track selected reports
+let selectedReports = new Set();
+
+// Update selection count and show/hide bulk actions bar
+function updateBulkActionsUI() {
+    const count = selectedReports.size;
+    document.getElementById('selected-count').textContent = count;
+    const bar = document.getElementById('bulk-actions-bar');
+
+    if (count > 0) {
+        bar.classList.remove('d-none');
+    } else {
+        bar.classList.add('d-none');
+    }
+}
+
+// Toggle report selection
+function toggleReportSelection(reportId, checkbox) {
+    if (checkbox.checked) {
+        selectedReports.add(reportId);
+    } else {
+        selectedReports.delete(reportId);
+    }
+    updateBulkActionsUI();
+}
+
+// Select all visible reports
+function toggleSelectAll(checkbox) {
+    const checkboxes = document.querySelectorAll('.report-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        if (checkbox.checked) {
+            selectedReports.add(cb.dataset.reportId);
+        } else {
+            selectedReports.delete(cb.dataset.reportId);
+        }
+    });
+    updateBulkActionsUI();
+}
+
+// Clear selection
+function clearSelection() {
+    selectedReports.clear();
+    document.querySelectorAll('.report-checkbox').forEach(cb => cb.checked = false);
+    const selectAll = document.getElementById('select-all-checkbox');
+    if (selectAll) selectAll.checked = false;
+    updateBulkActionsUI();
+}
+
+// Bulk export CSV
+async function bulkExportCSV() {
+    if (selectedReports.size === 0) return;
+
+    try {
+        const response = await fetch('/api/v1/bulk/export/csv', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ report_ids: Array.from(selectedReports) }),
+        });
+
+        if (!response.ok) throw new Error('Export failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sentinel_export_${Date.now()}.csv`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        alert('Export failed: ' + error.message);
+    }
+}
+
+// Bulk export PDF
+async function bulkExportPDF() {
+    if (selectedReports.size === 0) return;
+
+    if (selectedReports.size > 50) {
+        alert('Maximum 50 reports for PDF export');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/bulk/export/pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ report_ids: Array.from(selectedReports) }),
+        });
+
+        if (!response.ok) throw new Error('Export failed');
+
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `sentinel_reports_${Date.now()}.zip`;
+        a.click();
+        window.URL.revokeObjectURL(url);
+    } catch (error) {
+        alert('Export failed: ' + error.message);
+    }
+}
+
+// Show tag modal
+async function showTagModal() {
+    if (selectedReports.size === 0) return;
+
+    // Load existing tags
+    try {
+        const response = await fetch('/api/v1/bulk/tags');
+        const tags = await response.json();
+
+        const container = document.getElementById('tag-buttons');
+        if (tags.length > 0) {
+            container.innerHTML = tags.map(t =>
+                `<button class="btn btn-sm btn-outline-secondary me-1 mb-1" onclick="selectTag('${t.tag}')">${t.tag} (${t.count})</button>`
+            ).join('');
+        } else {
+            container.innerHTML = '<span class="text-muted">No existing tags</span>';
+        }
+    } catch (e) {
+        console.error('Failed to load tags:', e);
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById('tagModal'));
+    modal.show();
+}
+
+// Select existing tag
+function selectTag(tag) {
+    document.getElementById('tag-input').value = tag;
+}
+
+// Apply tag to selected reports
+async function applyTag() {
+    const tag = document.getElementById('tag-input').value.trim();
+    if (!tag) {
+        alert('Please enter a tag');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/bulk/tag', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                report_ids: Array.from(selectedReports),
+                tag: tag,
+            }),
+        });
+
+        if (!response.ok) throw new Error('Tagging failed');
+
+        const result = await response.json();
+        alert(result.message);
+
+        bootstrap.Modal.getInstance(document.getElementById('tagModal')).hide();
+        document.getElementById('tag-input').value = '';
+    } catch (error) {
+        alert('Tagging failed: ' + error.message);
+    }
+}
+
+// Bulk delete
+async function bulkDelete() {
+    if (selectedReports.size === 0) return;
+
+    if (!confirm(`Are you sure you want to delete ${selectedReports.size} reports? This cannot be undone.`)) {
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/v1/bulk/delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ report_ids: Array.from(selectedReports) }),
+        });
+
+        if (!response.ok) throw new Error('Delete failed');
+
+        const result = await response.json();
+        alert(result.message);
+
+        // Refresh the page
+        window.location.reload();
+    } catch (error) {
+        alert('Delete failed: ' + error.message);
+    }
+}
+
+// Re-initialize checkboxes after HTMX swap
+document.body.addEventListener('htmx:afterSwap', function(event) {
+    if (event.detail.target.id === 'reports-container') {
+        // Re-check any previously selected reports
+        document.querySelectorAll('.report-checkbox').forEach(cb => {
+            if (selectedReports.has(cb.dataset.reportId)) {
+                cb.checked = true;
+            }
+        });
+    }
+});
+</script>
 {% endblock %}

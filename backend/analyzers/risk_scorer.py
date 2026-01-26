@@ -12,6 +12,7 @@ from .activity import ActivityAnalyzer
 from .assets import AssetsAnalyzer
 from .base import BaseAnalyzer
 from .corp_history import CorpHistoryAnalyzer
+from .custom_rules import CustomRulesAnalyzer
 from .killboard import KillboardAnalyzer
 from .ml_scorer import MLScorer
 from .social import SocialAnalyzer
@@ -39,6 +40,7 @@ class RiskScorer:
             StandingsAnalyzer(),
             SocialAnalyzer(),
             AssetsAnalyzer(),
+            CustomRulesAnalyzer(),  # Custom admin-defined rules
         ]
 
         # Add ML scorer if a trained model is available

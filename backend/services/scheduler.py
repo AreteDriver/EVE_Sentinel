@@ -180,25 +180,52 @@ class ReanalysisScheduler:
             should_alert = True
 
         if should_alert:
-            # Send webhook notification if configured
-            try:
-                from backend.webhooks import DiscordWebhook
+            base_url = settings.base_url or "http://localhost:8000"
 
-                if settings.discord_webhook_url:
-                    webhook = DiscordWebhook()
-                    # Get the latest report for notification
-                    async with get_session() as session:
-                        report_repo = ReportRepository(session)
-                        report = await report_repo.get_latest_by_character_id(
-                            entry.character_id
+            async with get_session() as session:
+                report_repo = ReportRepository(session)
+                report = await report_repo.get_latest_by_character_id(
+                    entry.character_id
+                )
+
+                if not report:
+                    return
+
+                # Send webhook notification if configured
+                try:
+                    from backend.webhooks import DiscordWebhook
+
+                    if settings.discord_webhook_url:
+                        webhook = DiscordWebhook()
+                        await webhook.send_report(report, base_url=base_url)
+                except Exception as e:
+                    logger.error(f"Failed to send Discord notification: {e}")
+
+                # Send email notifications to users with email enabled
+                try:
+                    from backend.database.repository import UserRepository
+                    from backend.services.email_service import email_service
+
+                    if email_service.is_configured():
+                        user_repo = UserRepository(session)
+                        users = await user_repo.get_users_for_email_alert(
+                            alert_type="watchlist_change",
+                            risk_level=new_risk_level,
                         )
-                        if report:
-                            await webhook.send_report(
-                                report,
-                                base_url=settings.base_url or "http://localhost:8000",
-                            )
-            except Exception as e:
-                logger.error(f"Failed to send risk change notification: {e}")
+
+                        for user in users:
+                            if user.email:
+                                email_service.send_risk_change_alert(
+                                    to_email=user.email,
+                                    character_name=entry.character_name,
+                                    character_id=entry.character_id,
+                                    old_risk=entry.last_risk_level,
+                                    new_risk=new_risk_level,
+                                    report=report,
+                                    base_url=base_url,
+                                )
+                except Exception as e:
+                    logger.error(f"Failed to send email notifications: {e}")
 
     async def run_manual(self, character_ids: list[int] | None = None) -> dict:
         """

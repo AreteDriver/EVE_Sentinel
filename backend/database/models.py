@@ -267,9 +267,88 @@ class UserRecord(Base):
     corporation_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
     alliance_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
+    # Email notification preferences
+    email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    email_on_watchlist_change: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
+    email_on_red_alert: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
+    email_on_yellow_alert: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class FlagRuleRecord(Base):
+    """
+    Custom flag rule defined by admins.
+
+    Allows defining custom red/yellow/green flag conditions.
+    """
+
+    __tablename__ = "flag_rules"
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Rule definition
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+
+    # Severity (RED, YELLOW, GREEN)
+    severity: Mapped[str] = mapped_column(String(20), nullable=False)
+
+    # Condition type and parameters
+    # Types: corp_history, alliance_member, character_age, kill_count, etc.
+    condition_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    condition_params_json: Mapped[str] = mapped_column(Text, nullable=False, default="{}")
+
+    # Message shown when flag triggers
+    flag_message: Mapped[str] = mapped_column(Text, nullable=False)
+
+    # Status
+    is_active: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
+    priority: Mapped[int] = mapped_column(Integer, nullable=False, default=100)
+
+    # Metadata
+    created_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class ReportTagRecord(Base):
+    """
+    Tag applied to a report for organization.
+
+    Allows tagging reports for bulk operations and filtering.
+    """
+
+    __tablename__ = "report_tags"
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Foreign key to report
+    report_id: Mapped[str] = mapped_column(
+        String(36),
+        ForeignKey("reports.report_id", ondelete="CASCADE"),
+        index=True,
+        nullable=False,
+    )
+
+    # Tag info
+    tag: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    added_by: Mapped[str] = mapped_column(String(255), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    # Unique constraint: one tag per report
+    __table_args__ = (
+        Index("idx_report_tag", "report_id", "tag", unique=True),
+    )

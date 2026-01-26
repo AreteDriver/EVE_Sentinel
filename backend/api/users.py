@@ -28,6 +28,15 @@ class UpdateUserRequest(BaseModel):
     is_active: bool | None = None
 
 
+class UpdateEmailPrefsRequest(BaseModel):
+    """Request to update email preferences."""
+
+    email: str | None = None
+    email_on_watchlist_change: bool | None = None
+    email_on_red_alert: bool | None = None
+    email_on_yellow_alert: bool | None = None
+
+
 class UserResponse(BaseModel):
     """Response model for user."""
 
@@ -37,6 +46,10 @@ class UserResponse(BaseModel):
     is_active: bool
     corporation_id: int | None = None
     alliance_id: int | None = None
+    email: str | None = None
+    email_on_watchlist_change: bool = True
+    email_on_red_alert: bool = True
+    email_on_yellow_alert: bool = False
     created_at: str
     last_login_at: str | None = None
 
@@ -60,6 +73,10 @@ def _to_response(user: User) -> UserResponse:
         is_active=user.is_active,
         corporation_id=user.corporation_id,
         alliance_id=user.alliance_id,
+        email=user.email,
+        email_on_watchlist_change=user.email_on_watchlist_change,
+        email_on_red_alert=user.email_on_red_alert,
+        email_on_yellow_alert=user.email_on_yellow_alert,
         created_at=user.created_at.isoformat(),
         last_login_at=user.last_login_at.isoformat() if user.last_login_at else None,
     )
@@ -257,3 +274,55 @@ async def delete_user(
         character_id=user.character_id,
         character_name=user.character_name,
     )
+
+
+@router.patch("/{character_id}/email-preferences", response_model=UserResponse)
+@limiter.limit(LIMITS["reports"])
+async def update_email_preferences(
+    request: Request,
+    character_id: int,
+    prefs: UpdateEmailPrefsRequest,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> UserResponse:
+    """
+    Update a user's email notification preferences.
+
+    Users can update their own email preferences.
+    Admins can update any user's preferences.
+    """
+    repo = UserRepository(session)
+
+    user = await repo.update_email_preferences(
+        character_id=character_id,
+        email=prefs.email,
+        email_on_watchlist_change=prefs.email_on_watchlist_change,
+        email_on_red_alert=prefs.email_on_red_alert,
+        email_on_yellow_alert=prefs.email_on_yellow_alert,
+    )
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return _to_response(user)
+
+
+@router.get("/{character_id}/email-preferences")
+@limiter.limit(LIMITS["reports"])
+async def get_email_preferences(
+    request: Request,
+    character_id: int,
+    session: AsyncSession = Depends(get_session_dependency),
+) -> dict:
+    """Get a user's email notification preferences."""
+    repo = UserRepository(session)
+    user = await repo.get_by_id(character_id)
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    return {
+        "email": user.email,
+        "email_on_watchlist_change": user.email_on_watchlist_change,
+        "email_on_red_alert": user.email_on_red_alert,
+        "email_on_yellow_alert": user.email_on_yellow_alert,
+    }

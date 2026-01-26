@@ -929,6 +929,10 @@ class User(BaseModel):
     is_active: bool = True
     corporation_id: int | None = None
     alliance_id: int | None = None
+    email: str | None = None
+    email_on_watchlist_change: bool = True
+    email_on_red_alert: bool = True
+    email_on_yellow_alert: bool = False
     created_at: datetime
     last_login_at: datetime | None = None
     updated_at: datetime | None = None
@@ -1294,6 +1298,70 @@ class UserRepository:
         await self._session.commit()
         return True
 
+    async def get_users_for_email_alert(
+        self,
+        alert_type: str = "watchlist_change",
+        risk_level: str | None = None,
+    ) -> list[User]:
+        """
+        Get users who should receive email alerts.
+
+        Args:
+            alert_type: Type of alert (watchlist_change, new_analysis)
+            risk_level: Risk level triggering the alert (RED, YELLOW)
+
+        Returns:
+            List of users with email configured for this alert type
+        """
+        stmt = select(UserRecord).where(
+            UserRecord.is_active == True,
+            UserRecord.email.isnot(None),
+        )
+
+        if alert_type == "watchlist_change":
+            stmt = stmt.where(UserRecord.email_on_watchlist_change == True)
+
+        # Filter by risk level preference
+        if risk_level == "RED":
+            stmt = stmt.where(UserRecord.email_on_red_alert == True)
+        elif risk_level == "YELLOW":
+            stmt = stmt.where(UserRecord.email_on_yellow_alert == True)
+
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_model(r) for r in records]
+
+    async def update_email_preferences(
+        self,
+        character_id: int,
+        email: str | None = None,
+        email_on_watchlist_change: bool | None = None,
+        email_on_red_alert: bool | None = None,
+        email_on_yellow_alert: bool | None = None,
+    ) -> User | None:
+        """Update a user's email notification preferences."""
+        stmt = select(UserRecord).where(UserRecord.character_id == character_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return None
+
+        if email is not None:
+            record.email = email
+        if email_on_watchlist_change is not None:
+            record.email_on_watchlist_change = email_on_watchlist_change
+        if email_on_red_alert is not None:
+            record.email_on_red_alert = email_on_red_alert
+        if email_on_yellow_alert is not None:
+            record.email_on_yellow_alert = email_on_yellow_alert
+
+        record.updated_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
     def _to_model(self, record: UserRecord) -> User:
         """Convert record to Pydantic model."""
         return User(
@@ -1303,7 +1371,351 @@ class UserRepository:
             is_active=bool(record.is_active),
             corporation_id=record.corporation_id,
             alliance_id=record.alliance_id,
+            email=record.email,
+            email_on_watchlist_change=bool(record.email_on_watchlist_change),
+            email_on_red_alert=bool(record.email_on_red_alert),
+            email_on_yellow_alert=bool(record.email_on_yellow_alert),
             created_at=record.created_at,
             last_login_at=record.last_login_at,
             updated_at=record.updated_at,
+        )
+
+
+class FlagRule(BaseModel):
+    """Pydantic model for custom flag rule."""
+
+    id: int
+    name: str
+    description: str | None = None
+    code: str
+    severity: str  # RED, YELLOW, GREEN
+    condition_type: str
+    condition_params: dict
+    flag_message: str
+    is_active: bool = True
+    priority: int = 100
+    created_by: str
+    created_at: datetime
+    updated_at: datetime | None = None
+
+
+class FlagRuleRepository:
+    """
+    Async repository for custom flag rules.
+
+    Manages user-defined flag rules for custom risk detection.
+    """
+
+    # Available condition types
+    CONDITION_TYPES = [
+        "corp_member",       # Character is member of specific corp
+        "alliance_member",   # Character is member of specific alliance
+        "corp_history",      # Character was ever in specific corp
+        "character_age",     # Character age (days) comparison
+        "security_status",   # Security status comparison
+        "kill_count",        # Kill count comparison
+        "death_count",       # Death count comparison
+        "zkill_danger",      # zKillboard danger ratio comparison
+    ]
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        name: str,
+        code: str,
+        severity: str,
+        condition_type: str,
+        condition_params: dict,
+        flag_message: str,
+        created_by: str,
+        description: str | None = None,
+        priority: int = 100,
+    ) -> FlagRule:
+        """Create a new flag rule."""
+        from backend.database.models import FlagRuleRecord
+
+        record = FlagRuleRecord(
+            name=name,
+            description=description,
+            code=code.upper(),
+            severity=severity.upper(),
+            condition_type=condition_type,
+            condition_params_json=json.dumps(condition_params),
+            flag_message=flag_message,
+            is_active=True,
+            priority=priority,
+            created_by=created_by,
+            created_at=datetime.now(UTC),
+        )
+        self._session.add(record)
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def get_by_id(self, rule_id: int) -> FlagRule | None:
+        """Get a rule by ID."""
+        from backend.database.models import FlagRuleRecord
+
+        stmt = select(FlagRuleRecord).where(FlagRuleRecord.id == rule_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+        return self._to_model(record) if record else None
+
+    async def get_by_code(self, code: str) -> FlagRule | None:
+        """Get a rule by code."""
+        from backend.database.models import FlagRuleRecord
+
+        stmt = select(FlagRuleRecord).where(FlagRuleRecord.code == code.upper())
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+        return self._to_model(record) if record else None
+
+    async def list_rules(
+        self,
+        active_only: bool = False,
+        severity: str | None = None,
+    ) -> list[FlagRule]:
+        """List all flag rules."""
+        from backend.database.models import FlagRuleRecord
+
+        stmt = select(FlagRuleRecord).order_by(FlagRuleRecord.priority)
+
+        if active_only:
+            stmt = stmt.where(FlagRuleRecord.is_active == True)
+        if severity:
+            stmt = stmt.where(FlagRuleRecord.severity == severity.upper())
+
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_model(r) for r in records]
+
+    async def get_active_rules(self) -> list[FlagRule]:
+        """Get all active rules sorted by priority."""
+        return await self.list_rules(active_only=True)
+
+    async def update(
+        self,
+        rule_id: int,
+        name: str | None = None,
+        description: str | None = None,
+        severity: str | None = None,
+        condition_type: str | None = None,
+        condition_params: dict | None = None,
+        flag_message: str | None = None,
+        is_active: bool | None = None,
+        priority: int | None = None,
+    ) -> FlagRule | None:
+        """Update a flag rule."""
+        from backend.database.models import FlagRuleRecord
+
+        stmt = select(FlagRuleRecord).where(FlagRuleRecord.id == rule_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return None
+
+        if name is not None:
+            record.name = name
+        if description is not None:
+            record.description = description
+        if severity is not None:
+            record.severity = severity.upper()
+        if condition_type is not None:
+            record.condition_type = condition_type
+        if condition_params is not None:
+            record.condition_params_json = json.dumps(condition_params)
+        if flag_message is not None:
+            record.flag_message = flag_message
+        if is_active is not None:
+            record.is_active = is_active
+        if priority is not None:
+            record.priority = priority
+
+        record.updated_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def delete(self, rule_id: int) -> bool:
+        """Delete a flag rule."""
+        from backend.database.models import FlagRuleRecord
+
+        stmt = select(FlagRuleRecord).where(FlagRuleRecord.id == rule_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return False
+
+        await self._session.delete(record)
+        await self._session.commit()
+        return True
+
+    def _to_model(self, record) -> FlagRule:
+        """Convert record to Pydantic model."""
+        return FlagRule(
+            id=record.id,
+            name=record.name,
+            description=record.description,
+            code=record.code,
+            severity=record.severity,
+            condition_type=record.condition_type,
+            condition_params=json.loads(record.condition_params_json),
+            flag_message=record.flag_message,
+            is_active=bool(record.is_active),
+            priority=record.priority,
+            created_by=record.created_by,
+            created_at=record.created_at,
+            updated_at=record.updated_at,
+        )
+
+
+class ReportTag(BaseModel):
+    """Pydantic model for report tag."""
+
+    id: int
+    report_id: str
+    tag: str
+    added_by: str
+    created_at: datetime
+
+
+class ReportTagRepository:
+    """
+    Async repository for report tags.
+
+    Manages tags applied to reports for organization and bulk operations.
+    """
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def add_tag(self, report_id: str, tag: str, added_by: str) -> ReportTag:
+        """Add a tag to a report."""
+        from backend.database.models import ReportTagRecord
+
+        record = ReportTagRecord(
+            report_id=report_id,
+            tag=tag.lower().strip(),
+            added_by=added_by,
+            created_at=datetime.now(UTC),
+        )
+        self._session.add(record)
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def remove_tag(self, report_id: str, tag: str) -> bool:
+        """Remove a tag from a report."""
+        from backend.database.models import ReportTagRecord
+
+        stmt = select(ReportTagRecord).where(
+            ReportTagRecord.report_id == report_id,
+            ReportTagRecord.tag == tag.lower().strip(),
+        )
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return False
+
+        await self._session.delete(record)
+        await self._session.commit()
+        return True
+
+    async def get_tags_for_report(self, report_id: str) -> list[str]:
+        """Get all tags for a report."""
+        from backend.database.models import ReportTagRecord
+
+        stmt = select(ReportTagRecord).where(ReportTagRecord.report_id == report_id)
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+        return [r.tag for r in records]
+
+    async def get_reports_by_tag(self, tag: str) -> list[str]:
+        """Get all report IDs with a specific tag."""
+        from backend.database.models import ReportTagRecord
+
+        stmt = select(ReportTagRecord.report_id).where(
+            ReportTagRecord.tag == tag.lower().strip()
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_all_tags(self) -> list[dict]:
+        """Get all unique tags with counts."""
+        from backend.database.models import ReportTagRecord
+
+        stmt = (
+            select(ReportTagRecord.tag, func.count(ReportTagRecord.id).label("count"))
+            .group_by(ReportTagRecord.tag)
+            .order_by(desc("count"))
+        )
+        result = await self._session.execute(stmt)
+        return [{"tag": row.tag, "count": row.count} for row in result.all()]
+
+    async def bulk_add_tag(
+        self, report_ids: list[str], tag: str, added_by: str
+    ) -> int:
+        """Add a tag to multiple reports. Returns count of successful adds."""
+        from backend.database.models import ReportTagRecord
+
+        added = 0
+        tag = tag.lower().strip()
+
+        for report_id in report_ids:
+            # Check if tag already exists
+            existing = await self.get_tags_for_report(report_id)
+            if tag in existing:
+                continue
+
+            try:
+                record = ReportTagRecord(
+                    report_id=report_id,
+                    tag=tag,
+                    added_by=added_by,
+                    created_at=datetime.now(UTC),
+                )
+                self._session.add(record)
+                added += 1
+            except Exception:
+                continue
+
+        await self._session.commit()
+        return added
+
+    async def bulk_remove_tag(self, report_ids: list[str], tag: str) -> int:
+        """Remove a tag from multiple reports. Returns count of successful removes."""
+        from backend.database.models import ReportTagRecord
+
+        tag = tag.lower().strip()
+        removed = 0
+
+        for report_id in report_ids:
+            stmt = select(ReportTagRecord).where(
+                ReportTagRecord.report_id == report_id,
+                ReportTagRecord.tag == tag,
+            )
+            result = await self._session.execute(stmt)
+            record = result.scalar_one_or_none()
+
+            if record:
+                await self._session.delete(record)
+                removed += 1
+
+        await self._session.commit()
+        return removed
+
+    def _to_model(self, record) -> ReportTag:
+        """Convert record to Pydantic model."""
+        return ReportTag(
+            id=record.id,
+            report_id=record.report_id,
+            tag=record.tag,
+            added_by=record.added_by,
+            created_at=record.created_at,
         )
