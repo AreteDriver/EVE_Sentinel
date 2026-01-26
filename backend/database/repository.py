@@ -10,7 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import secrets
 
-from backend.database.models import AnnotationRecord, ReportRecord, ShareRecord, WatchlistRecord
+from backend.database.models import (
+    AnnotationRecord,
+    AuditLogRecord,
+    ReportRecord,
+    ShareRecord,
+    UserRecord,
+    WatchlistRecord,
+)
 from backend.models.applicant import Applicant, Playstyle, SuspectedAlt
 from backend.models.flags import RiskFlag
 from backend.models.report import AnalysisReport, OverallRisk, ReportStatus, ReportSummary
@@ -892,4 +899,411 @@ class ShareRepository:
             last_viewed_at=record.last_viewed_at,
             is_expired=is_expired,
             share_url=share_url,
+        )
+
+
+class AuditLog(BaseModel):
+    """Pydantic model for audit log entry."""
+
+    id: int
+    action: str
+    user_id: str | None = None
+    user_name: str | None = None
+    ip_address: str | None = None
+    user_agent: str | None = None
+    target_type: str | None = None
+    target_id: str | None = None
+    target_name: str | None = None
+    details: dict | None = None
+    success: bool = True
+    error_message: str | None = None
+    created_at: datetime
+
+
+class User(BaseModel):
+    """Pydantic model for user account."""
+
+    character_id: int
+    character_name: str
+    role: str = "viewer"
+    is_active: bool = True
+    corporation_id: int | None = None
+    alliance_id: int | None = None
+    created_at: datetime
+    last_login_at: datetime | None = None
+    updated_at: datetime | None = None
+
+
+class AuditLogRepository:
+    """
+    Async repository for audit logging.
+
+    Records user actions for security and compliance.
+    """
+
+    # Available actions
+    ACTIONS = [
+        "analyze",
+        "view_report",
+        "delete_report",
+        "create_share",
+        "revoke_share",
+        "view_shared",
+        "add_watchlist",
+        "remove_watchlist",
+        "update_watchlist",
+        "add_annotation",
+        "delete_annotation",
+        "login",
+        "logout",
+        "user_create",
+        "user_update",
+        "user_delete",
+        "batch_analyze",
+        "export_csv",
+        "export_pdf",
+    ]
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def log(
+        self,
+        action: str,
+        user_id: str | None = None,
+        user_name: str | None = None,
+        ip_address: str | None = None,
+        user_agent: str | None = None,
+        target_type: str | None = None,
+        target_id: str | None = None,
+        target_name: str | None = None,
+        details: dict | None = None,
+        success: bool = True,
+        error_message: str | None = None,
+    ) -> AuditLog:
+        """Create an audit log entry."""
+        record = AuditLogRecord(
+            action=action,
+            user_id=user_id,
+            user_name=user_name,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            target_type=target_type,
+            target_id=target_id,
+            target_name=target_name,
+            details_json=json.dumps(details) if details else None,
+            success=success,
+            error_message=error_message,
+            created_at=datetime.now(UTC),
+        )
+        self._session.add(record)
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def get_by_id(self, log_id: int) -> AuditLog | None:
+        """Get an audit log entry by ID."""
+        stmt = select(AuditLogRecord).where(AuditLogRecord.id == log_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+        return self._to_model(record) if record else None
+
+    async def list_logs(
+        self,
+        action: str | None = None,
+        user_id: str | None = None,
+        target_type: str | None = None,
+        target_id: str | None = None,
+        success: bool | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[AuditLog]:
+        """List audit logs with filtering."""
+        stmt = select(AuditLogRecord).order_by(desc(AuditLogRecord.created_at))
+
+        if action:
+            stmt = stmt.where(AuditLogRecord.action == action)
+        if user_id:
+            stmt = stmt.where(AuditLogRecord.user_id == user_id)
+        if target_type:
+            stmt = stmt.where(AuditLogRecord.target_type == target_type)
+        if target_id:
+            stmt = stmt.where(AuditLogRecord.target_id == target_id)
+        if success is not None:
+            stmt = stmt.where(AuditLogRecord.success == success)
+        if date_from:
+            stmt = stmt.where(AuditLogRecord.created_at >= date_from)
+        if date_to:
+            stmt = stmt.where(AuditLogRecord.created_at <= date_to)
+
+        stmt = stmt.offset(offset).limit(limit)
+
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_model(r) for r in records]
+
+    async def count_logs(
+        self,
+        action: str | None = None,
+        user_id: str | None = None,
+        target_type: str | None = None,
+        success: bool | None = None,
+        date_from: datetime | None = None,
+        date_to: datetime | None = None,
+    ) -> int:
+        """Count audit logs matching filters."""
+        stmt = select(func.count(AuditLogRecord.id))
+
+        if action:
+            stmt = stmt.where(AuditLogRecord.action == action)
+        if user_id:
+            stmt = stmt.where(AuditLogRecord.user_id == user_id)
+        if target_type:
+            stmt = stmt.where(AuditLogRecord.target_type == target_type)
+        if success is not None:
+            stmt = stmt.where(AuditLogRecord.success == success)
+        if date_from:
+            stmt = stmt.where(AuditLogRecord.created_at >= date_from)
+        if date_to:
+            stmt = stmt.where(AuditLogRecord.created_at <= date_to)
+
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
+
+    async def get_user_activity(
+        self,
+        user_id: str,
+        days: int = 30,
+    ) -> list[AuditLog]:
+        """Get recent activity for a specific user."""
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        return await self.list_logs(
+            user_id=user_id,
+            date_from=cutoff,
+            limit=500,
+        )
+
+    async def get_target_history(
+        self,
+        target_type: str,
+        target_id: str,
+    ) -> list[AuditLog]:
+        """Get all actions on a specific target."""
+        return await self.list_logs(
+            target_type=target_type,
+            target_id=target_id,
+            limit=500,
+        )
+
+    async def cleanup_old_logs(self, days: int = 365) -> int:
+        """Delete audit logs older than specified days."""
+        cutoff = datetime.now(UTC) - timedelta(days=days)
+        stmt = select(AuditLogRecord).where(AuditLogRecord.created_at < cutoff)
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+
+        for record in records:
+            await self._session.delete(record)
+
+        await self._session.commit()
+        return len(records)
+
+    def _to_model(self, record: AuditLogRecord) -> AuditLog:
+        """Convert record to Pydantic model."""
+        return AuditLog(
+            id=record.id,
+            action=record.action,
+            user_id=record.user_id,
+            user_name=record.user_name,
+            ip_address=record.ip_address,
+            user_agent=record.user_agent,
+            target_type=record.target_type,
+            target_id=record.target_id,
+            target_name=record.target_name,
+            details=json.loads(record.details_json) if record.details_json else None,
+            success=bool(record.success),
+            error_message=record.error_message,
+            created_at=record.created_at,
+        )
+
+
+class UserRepository:
+    """
+    Async repository for user management.
+
+    Handles user accounts and role-based access control.
+    """
+
+    ROLES = ["admin", "recruiter", "viewer"]
+
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+
+    async def create(
+        self,
+        character_id: int,
+        character_name: str,
+        role: str = "viewer",
+        corporation_id: int | None = None,
+        alliance_id: int | None = None,
+    ) -> User:
+        """Create a new user account."""
+        if role not in self.ROLES:
+            raise ValueError(f"Invalid role: {role}. Must be one of {self.ROLES}")
+
+        record = UserRecord(
+            character_id=character_id,
+            character_name=character_name,
+            role=role,
+            is_active=True,
+            corporation_id=corporation_id,
+            alliance_id=alliance_id,
+            created_at=datetime.now(UTC),
+        )
+        self._session.add(record)
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def get_by_id(self, character_id: int) -> User | None:
+        """Get a user by character ID."""
+        stmt = select(UserRecord).where(UserRecord.character_id == character_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+        return self._to_model(record) if record else None
+
+    async def get_or_create(
+        self,
+        character_id: int,
+        character_name: str,
+        corporation_id: int | None = None,
+        alliance_id: int | None = None,
+    ) -> tuple[User, bool]:
+        """Get existing user or create new one. Returns (user, created)."""
+        user = await self.get_by_id(character_id)
+        if user:
+            return user, False
+
+        user = await self.create(
+            character_id=character_id,
+            character_name=character_name,
+            corporation_id=corporation_id,
+            alliance_id=alliance_id,
+        )
+        return user, True
+
+    async def list_users(
+        self,
+        role: str | None = None,
+        is_active: bool | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> list[User]:
+        """List users with optional filtering."""
+        stmt = select(UserRecord).order_by(UserRecord.character_name)
+
+        if role:
+            stmt = stmt.where(UserRecord.role == role)
+        if is_active is not None:
+            stmt = stmt.where(UserRecord.is_active == is_active)
+
+        stmt = stmt.offset(offset).limit(limit)
+
+        result = await self._session.execute(stmt)
+        records = result.scalars().all()
+        return [self._to_model(r) for r in records]
+
+    async def count_users(
+        self,
+        role: str | None = None,
+        is_active: bool | None = None,
+    ) -> int:
+        """Count users matching filters."""
+        stmt = select(func.count(UserRecord.character_id))
+
+        if role:
+            stmt = stmt.where(UserRecord.role == role)
+        if is_active is not None:
+            stmt = stmt.where(UserRecord.is_active == is_active)
+
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
+
+    async def update_role(self, character_id: int, role: str) -> User | None:
+        """Update a user's role."""
+        if role not in self.ROLES:
+            raise ValueError(f"Invalid role: {role}. Must be one of {self.ROLES}")
+
+        stmt = select(UserRecord).where(UserRecord.character_id == character_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return None
+
+        record.role = role
+        record.updated_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def update_status(self, character_id: int, is_active: bool) -> User | None:
+        """Activate or deactivate a user."""
+        stmt = select(UserRecord).where(UserRecord.character_id == character_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return None
+
+        record.is_active = is_active
+        record.updated_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def record_login(self, character_id: int) -> User | None:
+        """Record a user login."""
+        stmt = select(UserRecord).where(UserRecord.character_id == character_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return None
+
+        record.last_login_at = datetime.now(UTC)
+
+        await self._session.commit()
+        await self._session.refresh(record)
+        return self._to_model(record)
+
+    async def delete(self, character_id: int) -> bool:
+        """Delete a user account."""
+        stmt = select(UserRecord).where(UserRecord.character_id == character_id)
+        result = await self._session.execute(stmt)
+        record = result.scalar_one_or_none()
+
+        if not record:
+            return False
+
+        await self._session.delete(record)
+        await self._session.commit()
+        return True
+
+    def _to_model(self, record: UserRecord) -> User:
+        """Convert record to Pydantic model."""
+        return User(
+            character_id=record.character_id,
+            character_name=record.character_name,
+            role=record.role,
+            is_active=bool(record.is_active),
+            corporation_id=record.corporation_id,
+            alliance_id=record.alliance_id,
+            created_at=record.created_at,
+            last_login_at=record.last_login_at,
+            updated_at=record.updated_at,
         )

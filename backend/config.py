@@ -62,6 +62,14 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379"
     redis_prefix: str = "sentinel:"
 
+    # Background Scheduler
+    scheduler_enabled: bool = False  # Disabled by default, enable in production
+    scheduler_interval_minutes: int = 60  # Run reanalysis every N minutes
+    scheduler_max_per_run: int = 10  # Max characters to analyze per run
+
+    # Base URL (for links in notifications)
+    base_url: str | None = None
+
     def get_api_keys(self) -> set[str]:
         """Parse API keys from comma-separated string."""
         if not self.api_keys:

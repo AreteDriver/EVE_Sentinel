@@ -12,7 +12,10 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from backend.api.admin import router as admin_router
 from backend.api.analyze import router as analyze_router
+from backend.api.audit import router as audit_router
 from backend.api.auth import router as auth_router
+from backend.api.scheduler import router as scheduler_router
+from backend.api.users import router as users_router
 from backend.api.ml import router as ml_router
 from backend.api.reports import router as reports_router
 from backend.api.shares import router as shares_router
@@ -23,6 +26,7 @@ from backend.config import settings
 from backend.database import close_db, init_db
 from backend.logging_config import get_logger, setup_logging
 from backend.rate_limit import limiter, rate_limit_exceeded_handler
+from backend.services import scheduler
 from frontend import router as frontend_router
 
 # Initialize logging
@@ -38,8 +42,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     await init_db()
     logger.info("Database initialized")
     await cache.connect()
+
+    # Start background scheduler if enabled
+    if settings.scheduler_enabled:
+        await scheduler.start()
+        logger.info("Background scheduler started")
+
     yield
+
     # Shutdown
+    if settings.scheduler_enabled:
+        await scheduler.stop()
+        logger.info("Background scheduler stopped")
+
     await cache.close()
     await close_db()
     logger.info("EVE Sentinel shutting down...")
@@ -110,6 +125,9 @@ app.include_router(watchlist_router)
 app.include_router(webhooks_router)
 app.include_router(ml_router)
 app.include_router(admin_router)
+app.include_router(audit_router)
+app.include_router(users_router)
+app.include_router(scheduler_router)
 
 # Include frontend router (must be last to avoid path conflicts)
 app.include_router(frontend_router)

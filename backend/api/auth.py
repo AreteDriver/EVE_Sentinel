@@ -120,7 +120,11 @@ async def callback(request: Request):
     Handle EVE SSO callback.
 
     Exchanges authorization code for tokens and creates session.
+    Auto-creates user account on first login.
     """
+    from backend.database import UserRepository, get_session
+    from backend.services import AuditService
+
     if not is_sso_configured():
         raise HTTPException(
             status_code=503,
@@ -142,6 +146,25 @@ async def callback(request: Request):
 
         # Store user in session
         request.session["user"] = character.model_dump(mode="json")
+        request.session["character_id"] = character.character_id
+        request.session["character_name"] = character.character_name
+
+        # Auto-create user account if doesn't exist
+        async with get_session() as session:
+            user_repo = UserRepository(session)
+            user, created = await user_repo.get_or_create(
+                character_id=character.character_id,
+                character_name=character.character_name,
+                corporation_id=character.corporation_id if hasattr(character, "corporation_id") else None,
+                alliance_id=character.alliance_id if hasattr(character, "alliance_id") else None,
+            )
+
+            # Record login
+            await user_repo.record_login(character.character_id)
+
+            # Audit log the login
+            audit = AuditService(session, request)
+            await audit.log_login(character.character_id, character.character_name)
 
         # Redirect to original destination or dashboard
         redirect_uri = request.session.pop("login_redirect", "/")
@@ -163,6 +186,16 @@ async def logout(request: Request, redirect_uri: str = "/"):
 
     Clears the session and redirects to the specified URI.
     """
+    from backend.database import get_session
+    from backend.services import AuditService
+
+    # Log the logout before clearing session
+    character_id = request.session.get("character_id")
+    if character_id:
+        async with get_session() as session:
+            audit = AuditService(session, request)
+            await audit.log_logout()
+
     request.session.clear()
     return RedirectResponse(url=redirect_uri)
 

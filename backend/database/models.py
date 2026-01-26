@@ -191,3 +191,85 @@ class WatchlistRecord(Base):
         DateTime, nullable=False, default=lambda: datetime.now(UTC)
     )
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+
+class AuditLogRecord(Base):
+    """
+    Audit log entry for tracking user actions.
+
+    Records who did what, when, and from where for security and compliance.
+    """
+
+    __tablename__ = "audit_logs"
+
+    # Primary key
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+
+    # Action details
+    action: Mapped[str] = mapped_column(String(50), index=True, nullable=False)
+    # Actions: analyze, view_report, create_share, revoke_share, add_watchlist,
+    #          remove_watchlist, add_annotation, delete_annotation, login, logout, etc.
+
+    # Actor information
+    user_id: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
+    user_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)  # IPv6 max length
+    user_agent: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # Target information
+    target_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    # Types: character, report, share, watchlist, annotation, user, etc.
+    target_id: Mapped[str | None] = mapped_column(String(255), index=True, nullable=True)
+    target_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    # Additional context as JSON
+    details_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Result
+    success: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)  # SQLite bool
+    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # Timestamp
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, index=True, nullable=False, default=lambda: datetime.now(UTC)
+    )
+
+    # Composite indexes for common queries
+    __table_args__ = (
+        Index("idx_audit_user_time", "user_id", "created_at"),
+        Index("idx_audit_action_time", "action", "created_at"),
+        Index("idx_audit_target_time", "target_type", "target_id", "created_at"),
+    )
+
+
+class UserRecord(Base):
+    """
+    User account for role-based access control.
+
+    Links to EVE SSO character for authentication.
+    """
+
+    __tablename__ = "users"
+
+    # Primary key - EVE character ID
+    character_id: Mapped[int] = mapped_column(Integer, primary_key=True)
+
+    # Character info
+    character_name: Mapped[str] = mapped_column(String(255), nullable=False)
+
+    # Role (admin, recruiter, viewer)
+    role: Mapped[str] = mapped_column(String(50), nullable=False, default="viewer")
+
+    # Status
+    is_active: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)  # SQLite bool
+
+    # Metadata
+    corporation_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    alliance_id: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=lambda: datetime.now(UTC)
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
