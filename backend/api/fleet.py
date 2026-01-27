@@ -79,8 +79,6 @@ async def analyze_corporation(
     Fetches corporation member list and analyzes each character.
     Limited to max_members to avoid rate limiting.
     """
-    start_time = datetime.now(UTC)
-
     # Resolve corporation
     corp_id = corp_request.corporation_id
     if not corp_id and corp_request.corporation_name:
@@ -165,7 +163,7 @@ async def analyze_fleet(
                         red_flags=0,
                         yellow_flags=0,
                         green_flags=0,
-                        error=f"Character not found",
+                        error="Character not found",
                     )
                 )
                 failed_count += 1

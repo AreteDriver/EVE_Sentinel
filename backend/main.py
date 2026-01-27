@@ -11,18 +11,18 @@ from slowapi.errors import RateLimitExceeded
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.api.admin import router as admin_router
-from backend.api.analyze import router as analyze_router
 from backend.api.analytics import router as analytics_router
+from backend.api.analyze import router as analyze_router
 from backend.api.audit import router as audit_router
 from backend.api.auth import router as auth_router
 from backend.api.bulk import router as bulk_router
 from backend.api.fleet import router as fleet_router
-from backend.api.rules import router as rules_router
-from backend.api.scheduler import router as scheduler_router
-from backend.api.users import router as users_router
 from backend.api.ml import router as ml_router
 from backend.api.reports import router as reports_router
+from backend.api.rules import router as rules_router
+from backend.api.scheduler import router as scheduler_router
 from backend.api.shares import router as shares_router
+from backend.api.users import router as users_router
 from backend.api.watchlist import router as watchlist_router
 from backend.api.webhooks import router as webhooks_router
 from backend.cache import cache

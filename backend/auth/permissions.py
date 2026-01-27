@@ -1,8 +1,7 @@
 """Role-based access control and permissions."""
 
+from collections.abc import Callable
 from enum import Enum
-from functools import wraps
-from typing import Callable
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession

@@ -1,14 +1,13 @@
 """Repository for report persistence operations."""
 
 import json
+import secrets
 from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from pydantic import BaseModel
 from sqlalchemy import desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-import secrets
 
 from backend.database.models import (
     AnnotationRecord,
@@ -1314,18 +1313,18 @@ class UserRepository:
             List of users with email configured for this alert type
         """
         stmt = select(UserRecord).where(
-            UserRecord.is_active == True,
+            UserRecord.is_active == True,  # noqa: E712 - SQLAlchemy requires == for .where()
             UserRecord.email.isnot(None),
         )
 
         if alert_type == "watchlist_change":
-            stmt = stmt.where(UserRecord.email_on_watchlist_change == True)
+            stmt = stmt.where(UserRecord.email_on_watchlist_change == True)  # noqa: E712
 
         # Filter by risk level preference
         if risk_level == "RED":
-            stmt = stmt.where(UserRecord.email_on_red_alert == True)
+            stmt = stmt.where(UserRecord.email_on_red_alert == True)  # noqa: E712
         elif risk_level == "YELLOW":
-            stmt = stmt.where(UserRecord.email_on_yellow_alert == True)
+            stmt = stmt.where(UserRecord.email_on_yellow_alert == True)  # noqa: E712
 
         result = await self._session.execute(stmt)
         records = result.scalars().all()
@@ -1483,7 +1482,7 @@ class FlagRuleRepository:
         stmt = select(FlagRuleRecord).order_by(FlagRuleRecord.priority)
 
         if active_only:
-            stmt = stmt.where(FlagRuleRecord.is_active == True)
+            stmt = stmt.where(FlagRuleRecord.is_active == True)  # noqa: E712
         if severity:
             stmt = stmt.where(FlagRuleRecord.severity == severity.upper())
 

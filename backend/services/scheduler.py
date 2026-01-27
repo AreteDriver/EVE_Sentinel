@@ -1,7 +1,6 @@
 """Background scheduler for automated tasks."""
 
 import asyncio
-from datetime import UTC, datetime
 
 from backend.analyzers.risk_scorer import RiskScorer
 from backend.config import settings

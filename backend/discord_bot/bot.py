@@ -320,7 +320,7 @@ class WatchlistCog(commands.Cog, name="Watchlist"):
                     )
                     return
 
-                entry = await repo.add(
+                await repo.add(
                     character_id=character_id,
                     character_name=character_name,
                     added_by=f"discord:{interaction.user.name}",
@@ -370,12 +370,12 @@ class WatchlistCog(commands.Cog, name="Watchlist"):
 
             if removed:
                 await interaction.followup.send(
-                    f"Removed from watchlist",
+                    "Removed from watchlist",
                     ephemeral=True,
                 )
             else:
                 await interaction.followup.send(
-                    f"Character not found on watchlist",
+                    "Character not found on watchlist",
                     ephemeral=True,
                 )
 

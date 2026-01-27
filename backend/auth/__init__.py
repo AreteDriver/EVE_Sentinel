@@ -9,8 +9,10 @@ from backend.auth.apikey import (
     get_api_key,
     hash_api_key,
     optional_api_key,
-    require_api_key as require_api_key_auth,
     validate_api_key,
+)
+from backend.auth.apikey import (
+    require_api_key as require_api_key_auth,
 )
 
 # Export role-based access control
