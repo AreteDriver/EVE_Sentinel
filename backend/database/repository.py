@@ -589,10 +589,14 @@ class WatchlistRepository:
         """List characters that need reanalysis (no analysis in threshold days)."""
         cutoff = datetime.now(UTC) - timedelta(days=self.REANALYSIS_THRESHOLD_DAYS)
 
-        stmt = select(WatchlistRecord).where(
-            (WatchlistRecord.last_analysis_at.is_(None))
-            | (WatchlistRecord.last_analysis_at < cutoff)
-        ).order_by(WatchlistRecord.priority.desc(), WatchlistRecord.last_analysis_at)
+        stmt = (
+            select(WatchlistRecord)
+            .where(
+                (WatchlistRecord.last_analysis_at.is_(None))
+                | (WatchlistRecord.last_analysis_at < cutoff)
+            )
+            .order_by(WatchlistRecord.priority.desc(), WatchlistRecord.last_analysis_at)
+        )
 
         result = await self._session.execute(stmt)
         records = result.scalars().all()
@@ -1407,14 +1411,14 @@ class FlagRuleRepository:
 
     # Available condition types
     CONDITION_TYPES = [
-        "corp_member",       # Character is member of specific corp
-        "alliance_member",   # Character is member of specific alliance
-        "corp_history",      # Character was ever in specific corp
-        "character_age",     # Character age (days) comparison
-        "security_status",   # Security status comparison
-        "kill_count",        # Kill count comparison
-        "death_count",       # Death count comparison
-        "zkill_danger",      # zKillboard danger ratio comparison
+        "corp_member",  # Character is member of specific corp
+        "alliance_member",  # Character is member of specific alliance
+        "corp_history",  # Character was ever in specific corp
+        "character_age",  # Character age (days) comparison
+        "security_status",  # Security status comparison
+        "kill_count",  # Kill count comparison
+        "death_count",  # Death count comparison
+        "zkill_danger",  # zKillboard danger ratio comparison
     ]
 
     def __init__(self, session: AsyncSession) -> None:
@@ -1639,9 +1643,7 @@ class ReportTagRepository:
         """Get all report IDs with a specific tag."""
         from backend.database.models import ReportTagRecord
 
-        stmt = select(ReportTagRecord.report_id).where(
-            ReportTagRecord.tag == tag.lower().strip()
-        )
+        stmt = select(ReportTagRecord.report_id).where(ReportTagRecord.tag == tag.lower().strip())
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
@@ -1657,9 +1659,7 @@ class ReportTagRepository:
         result = await self._session.execute(stmt)
         return [{"tag": row.tag, "count": row.count} for row in result.all()]
 
-    async def bulk_add_tag(
-        self, report_ids: list[str], tag: str, added_by: str
-    ) -> int:
+    async def bulk_add_tag(self, report_ids: list[str], tag: str, added_by: str) -> int:
         """Add a tag to multiple reports. Returns count of successful adds."""
         from backend.database.models import ReportTagRecord
 

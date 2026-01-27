@@ -85,13 +85,17 @@ class TestReportRepositoryChartMethods:
     @pytest.mark.asyncio
     async def test_get_top_flags_counts_correctly(self, repo, mock_session):
         """Test that flags are counted correctly."""
-        flags1 = json.dumps([
-            {"code": "HOSTILE_CORP", "title": "Hostile Corp", "severity": "red"},
-            {"code": "LOW_ACTIVITY", "title": "Low Activity", "severity": "yellow"},
-        ])
-        flags2 = json.dumps([
-            {"code": "HOSTILE_CORP", "title": "Hostile Corp", "severity": "red"},
-        ])
+        flags1 = json.dumps(
+            [
+                {"code": "HOSTILE_CORP", "title": "Hostile Corp", "severity": "red"},
+                {"code": "LOW_ACTIVITY", "title": "Low Activity", "severity": "yellow"},
+            ]
+        )
+        flags2 = json.dumps(
+            [
+                {"code": "HOSTILE_CORP", "title": "Hostile Corp", "severity": "red"},
+            ]
+        )
 
         mock_result = MagicMock()
         mock_result.all.return_value = [(flags1,), (flags2,)]
@@ -113,9 +117,7 @@ class TestReportRepositoryChartMethods:
         # Create 15 different flags
         flags_data = []
         for i in range(15):
-            flag = json.dumps([
-                {"code": f"FLAG_{i}", "title": f"Flag {i}", "severity": "yellow"}
-            ])
+            flag = json.dumps([{"code": f"FLAG_{i}", "title": f"Flag {i}", "severity": "yellow"}])
             flags_data.append((flag,))
 
         mock_result = MagicMock()

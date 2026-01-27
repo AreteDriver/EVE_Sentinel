@@ -9,6 +9,7 @@ from backend.database import AuditLog, AuditLogRepository
 def get_client_info(request: Request) -> dict:
     """Extract client information from request for audit logging."""
     # Get IP address (handle proxies)
+    ip_address: str | None
     forwarded = request.headers.get("x-forwarded-for")
     if forwarded:
         ip_address = forwarded.split(",")[0].strip()

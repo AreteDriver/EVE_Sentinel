@@ -36,18 +36,14 @@ class TestActivityAnalyzer:
     """Tests for ActivityAnalyzer."""
 
     @pytest.mark.asyncio
-    async def test_empty_activity_returns_no_flags(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_empty_activity_returns_no_flags(self, activity_analyzer, base_applicant):
         """Empty activity data should return no flags."""
         base_applicant.activity = ActivityPattern()
         flags = await activity_analyzer.analyze(base_applicant)
         assert flags == []
 
     @pytest.mark.asyncio
-    async def test_timezone_mismatch_detected(
-        self, activity_analyzer_with_tz, base_applicant
-    ):
+    async def test_timezone_mismatch_detected(self, activity_analyzer_with_tz, base_applicant):
         """Timezone mismatch should be flagged."""
         base_applicant.activity = ActivityPattern(
             primary_timezone="US-TZ",
@@ -60,9 +56,7 @@ class TestActivityAnalyzer:
         assert any(f.code == YellowFlags.TIMEZONE_MISMATCH for f in yellow_flags)
 
     @pytest.mark.asyncio
-    async def test_timezone_match_no_flag(
-        self, activity_analyzer_with_tz, base_applicant
-    ):
+    async def test_timezone_match_no_flag(self, activity_analyzer_with_tz, base_applicant):
         """Matching timezone should not be flagged."""
         base_applicant.activity = ActivityPattern(
             primary_timezone="EU-TZ",
@@ -74,9 +68,7 @@ class TestActivityAnalyzer:
         assert not any(f.code == YellowFlags.TIMEZONE_MISMATCH for f in flags)
 
     @pytest.mark.asyncio
-    async def test_no_target_tz_skips_mismatch_check(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_no_target_tz_skips_mismatch_check(self, activity_analyzer, base_applicant):
         """Without target TZ configured, no mismatch flag."""
         base_applicant.activity = ActivityPattern(
             primary_timezone="AU-TZ",
@@ -88,9 +80,7 @@ class TestActivityAnalyzer:
         assert not any(f.code == YellowFlags.TIMEZONE_MISMATCH for f in flags)
 
     @pytest.mark.asyncio
-    async def test_severe_inactivity_detected(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_severe_inactivity_detected(self, activity_analyzer, base_applicant):
         """90+ days without activity should be flagged."""
         now = datetime.now(UTC)
         base_applicant.activity = ActivityPattern(
@@ -106,9 +96,7 @@ class TestActivityAnalyzer:
         assert inactive_flag.evidence["days_inactive"] >= 100
 
     @pytest.mark.asyncio
-    async def test_moderate_inactivity_detected(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_moderate_inactivity_detected(self, activity_analyzer, base_applicant):
         """30-90 days without activity should be flagged."""
         now = datetime.now(UTC)
         base_applicant.activity = ActivityPattern(
@@ -121,9 +109,7 @@ class TestActivityAnalyzer:
         assert any(f.code == YellowFlags.INACTIVE_PERIOD for f in yellow_flags)
 
     @pytest.mark.asyncio
-    async def test_recent_activity_no_inactive_flag(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_recent_activity_no_inactive_flag(self, activity_analyzer, base_applicant):
         """Activity within 30 days should not flag inactivity."""
         now = datetime.now(UTC)
         base_applicant.activity = ActivityPattern(
@@ -135,9 +121,7 @@ class TestActivityAnalyzer:
         assert not any(f.code == YellowFlags.INACTIVE_PERIOD for f in flags)
 
     @pytest.mark.asyncio
-    async def test_loss_date_used_if_no_kill(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_loss_date_used_if_no_kill(self, activity_analyzer, base_applicant):
         """Last loss date should be used if no kill date."""
         now = datetime.now(UTC)
         base_applicant.activity = ActivityPattern(
@@ -150,9 +134,7 @@ class TestActivityAnalyzer:
         assert not any(f.code == YellowFlags.INACTIVE_PERIOD for f in flags)
 
     @pytest.mark.asyncio
-    async def test_inactive_trend_flagged(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_inactive_trend_flagged(self, activity_analyzer, base_applicant):
         """Inactive activity trend should be flagged."""
         base_applicant.activity = ActivityPattern(
             activity_trend="inactive",
@@ -164,9 +146,7 @@ class TestActivityAnalyzer:
         assert any(f.code == YellowFlags.INACTIVE_PERIOD for f in yellow_flags)
 
     @pytest.mark.asyncio
-    async def test_declining_trend_flagged(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_declining_trend_flagged(self, activity_analyzer, base_applicant):
         """Declining activity trend should be flagged."""
         base_applicant.activity = ActivityPattern(
             activity_trend="declining",
@@ -178,9 +158,7 @@ class TestActivityAnalyzer:
         assert any(f.code == YellowFlags.INACTIVE_PERIOD for f in yellow_flags)
 
     @pytest.mark.asyncio
-    async def test_low_engagement_flagged(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_low_engagement_flagged(self, activity_analyzer, base_applicant):
         """Low active days per week should be flagged."""
         base_applicant.activity = ActivityPattern(
             active_days_per_week=1.5,
@@ -192,9 +170,7 @@ class TestActivityAnalyzer:
         assert any(f.code == YellowFlags.LOW_ACTIVITY for f in yellow_flags)
 
     @pytest.mark.asyncio
-    async def test_consistent_activity_green_flag(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_consistent_activity_green_flag(self, activity_analyzer, base_applicant):
         """High active days per week should get green flag."""
         base_applicant.activity = ActivityPattern(
             active_days_per_week=5.0,
@@ -208,9 +184,7 @@ class TestActivityAnalyzer:
         assert any(f.code == GreenFlags.CONSISTENT_ACTIVITY for f in green_flags)
 
     @pytest.mark.asyncio
-    async def test_moderate_activity_no_flags(
-        self, activity_analyzer, base_applicant
-    ):
+    async def test_moderate_activity_no_flags(self, activity_analyzer, base_applicant):
         """Moderate activity (2-4 days/week) should have no activity flags."""
         base_applicant.activity = ActivityPattern(
             active_days_per_week=3.0,
@@ -246,9 +220,7 @@ class TestActivityAnalyzer:
             activity_analyzer.set_target_timezone("INVALID-TZ")
 
     @pytest.mark.asyncio
-    async def test_multiple_flags_can_be_returned(
-        self, activity_analyzer_with_tz, base_applicant
-    ):
+    async def test_multiple_flags_can_be_returned(self, activity_analyzer_with_tz, base_applicant):
         """Multiple issues should return multiple flags."""
         now = datetime.now(UTC)
         base_applicant.activity = ActivityPattern(

@@ -252,14 +252,21 @@ async def update_rule(
     repo = FlagRuleRepository(session)
 
     # Validate severity if provided
-    if update_request.severity and update_request.severity.upper() not in ["RED", "YELLOW", "GREEN"]:
+    if update_request.severity and update_request.severity.upper() not in [
+        "RED",
+        "YELLOW",
+        "GREEN",
+    ]:
         raise HTTPException(
             status_code=400,
             detail="Severity must be RED, YELLOW, or GREEN",
         )
 
     # Validate condition type if provided
-    if update_request.condition_type and update_request.condition_type not in FlagRuleRepository.CONDITION_TYPES:
+    if (
+        update_request.condition_type
+        and update_request.condition_type not in FlagRuleRepository.CONDITION_TYPES
+    ):
         raise HTTPException(
             status_code=400,
             detail=f"Invalid condition type. Must be one of: {FlagRuleRepository.CONDITION_TYPES}",

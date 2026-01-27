@@ -55,7 +55,7 @@ async def get_pending_reanalysis(
 ) -> PendingReanalysisResponse:
     """Get list of characters pending reanalysis."""
     repo = WatchlistRepository(session)
-    characters = await repo.get_needing_reanalysis()
+    characters = await repo.list_needing_reanalysis()
 
     return PendingReanalysisResponse(
         count=len(characters),

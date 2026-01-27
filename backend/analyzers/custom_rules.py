@@ -46,13 +46,13 @@ class CustomRulesAnalyzer(BaseAnalyzer):
             if condition_type == "corp_member":
                 # Check if character is currently in specific corp
                 corp_ids = params.get("corp_ids", [])
-                if applicant.corporation and applicant.corporation.corporation_id in corp_ids:
+                if applicant.corporation_id and applicant.corporation_id in corp_ids:
                     return True
 
             elif condition_type == "alliance_member":
                 # Check if character is in specific alliance
                 alliance_ids = params.get("alliance_ids", [])
-                if applicant.corporation and applicant.corporation.alliance_id in alliance_ids:
+                if applicant.alliance_id and applicant.alliance_id in alliance_ids:
                     return True
 
             elif condition_type == "corp_history":

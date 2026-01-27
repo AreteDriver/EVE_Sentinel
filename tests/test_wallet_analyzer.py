@@ -216,7 +216,9 @@ class TestWalletAnalyzer:
         assert not any(f.code == YellowFlags.LARGE_PRE_JOIN_TRANSFER for f in flags)
 
     @pytest.mark.asyncio
-    async def test_pre_join_transfer_not_flagged_outside_window(self, wallet_analyzer, base_applicant):
+    async def test_pre_join_transfer_not_flagged_outside_window(
+        self, wallet_analyzer, base_applicant
+    ):
         """Transfers more than 30 days before joining should not be flagged."""
         now = datetime.now(UTC)
         join_date = now - timedelta(days=60)

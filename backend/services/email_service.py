@@ -27,13 +27,7 @@ class EmailService:
 
     def is_configured(self) -> bool:
         """Check if email is properly configured."""
-        return (
-            self.enabled
-            and self.host
-            and self.user
-            and self.password
-            and self.from_email
-        )
+        return bool(self.enabled and self.host and self.user and self.password and self.from_email)
 
     def send_email(
         self,
@@ -71,6 +65,11 @@ class EmailService:
 
             # Connect and send
             context = ssl.create_default_context()
+
+            # is_configured() guarantees these are not None
+            assert self.user is not None
+            assert self.password is not None
+            assert self.from_email is not None
 
             if self.use_tls:
                 with smtplib.SMTP(self.host, self.port) as server:

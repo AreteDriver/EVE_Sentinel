@@ -215,7 +215,7 @@ async def update_user(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
 
-    changes = {}
+    changes: dict[str, str | bool] = {}
 
     # Update role if provided
     if update_request.role is not None:

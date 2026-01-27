@@ -138,6 +138,7 @@ class TestRedisCacheWithMockClient:
     async def test_get_returns_cached_value(self, cache_with_client, mock_redis):
         """Test that get returns cached value."""
         import json
+
         mock_redis.get = AsyncMock(return_value=json.dumps({"name": "Test"}))
 
         result = await cache_with_client.get("character", "123")

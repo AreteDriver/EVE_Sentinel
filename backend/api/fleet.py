@@ -83,7 +83,9 @@ async def analyze_corporation(
     corp_id = corp_request.corporation_id
     if not corp_id and corp_request.corporation_name:
         # Search for corporation by name
-        corp_id = await esi_client.search_corporation(corp_request.corporation_name)
+        # search_character resolves names to IDs; for corps we need a different approach
+        # For now, corporation lookup by name is not supported via ESI search
+        corp_id = None  # TODO: implement corporation name search
 
     if not corp_id:
         raise HTTPException(
@@ -204,7 +206,7 @@ async def analyze_fleet(
                 CharacterResult(
                     character_id=character_id,
                     character_name=report.character_name,
-                    corporation_name=applicant.corporation.name if applicant.corporation else None,
+                    corporation_name=applicant.corporation_name,
                     overall_risk=report.overall_risk.value,
                     confidence=report.confidence,
                     red_flags=report.red_flag_count,
@@ -369,12 +371,37 @@ def is_ship_type(text: str) -> bool:
     """Check if text is likely a ship type rather than a character name."""
     # Common ship type indicators
     ship_indicators = [
-        "frigate", "destroyer", "cruiser", "battlecruiser", "battleship",
-        "carrier", "dreadnought", "titan", "supercarrier", "freighter",
-        "industrial", "mining", "shuttle", "capsule", "pod",
-        "interceptor", "assault", "recon", "command", "logistics",
-        "stealth", "bomber", "corvette", "venture", "procurer", "retriever",
-        "hulk", "skiff", "mackinaw", "rorqual", "orca",
+        "frigate",
+        "destroyer",
+        "cruiser",
+        "battlecruiser",
+        "battleship",
+        "carrier",
+        "dreadnought",
+        "titan",
+        "supercarrier",
+        "freighter",
+        "industrial",
+        "mining",
+        "shuttle",
+        "capsule",
+        "pod",
+        "interceptor",
+        "assault",
+        "recon",
+        "command",
+        "logistics",
+        "stealth",
+        "bomber",
+        "corvette",
+        "venture",
+        "procurer",
+        "retriever",
+        "hulk",
+        "skiff",
+        "mackinaw",
+        "rorqual",
+        "orca",
     ]
 
     lower_text = text.lower()

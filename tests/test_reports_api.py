@@ -55,6 +55,7 @@ def mock_repo_with_report(sample_report):
 @pytest.fixture
 def client(mock_repo_with_report):
     """Create a test client with mocked database."""
+
     async def mock_session():
         yield MagicMock()
 
@@ -146,6 +147,7 @@ class TestGetReportNotFound:
 
     def test_get_nonexistent_report_returns_404(self):
         """Test that getting nonexistent report returns 404."""
+
         async def mock_session():
             yield MagicMock()
 
@@ -192,6 +194,7 @@ class TestDeleteReport:
 
     def test_delete_nonexistent_report_returns_404(self):
         """Test that deleting nonexistent report returns 404."""
+
         async def mock_session():
             yield MagicMock()
 
@@ -214,27 +217,20 @@ class TestBulkPDF:
 
     def test_bulk_pdf_empty_list_returns_400(self, client):
         """Test that bulk PDF with empty list returns 400."""
-        response = client.post(
-            "/api/v1/reports/bulk-pdf",
-            json={"report_ids": []}
-        )
+        response = client.post("/api/v1/reports/bulk-pdf", json={"report_ids": []})
         assert response.status_code == 400
 
     def test_bulk_pdf_too_many_reports_returns_400(self, client):
         """Test that bulk PDF with too many reports returns 400."""
         # Create 51 UUIDs
         report_ids = [str(uuid4()) for _ in range(51)]
-        response = client.post(
-            "/api/v1/reports/bulk-pdf",
-            json={"report_ids": report_ids}
-        )
+        response = client.post("/api/v1/reports/bulk-pdf", json={"report_ids": report_ids})
         assert response.status_code == 400
 
     def test_bulk_pdf_returns_zip(self, client, sample_report):
         """Test that bulk PDF returns a ZIP file."""
         response = client.post(
-            "/api/v1/reports/bulk-pdf",
-            json={"report_ids": [str(sample_report.report_id)]}
+            "/api/v1/reports/bulk-pdf", json={"report_ids": [str(sample_report.report_id)]}
         )
         assert response.status_code == 200
         assert response.headers["content-type"] == "application/zip"

@@ -48,9 +48,7 @@ class ReanalysisScheduler:
 
         self._running = True
         self._task = asyncio.create_task(self._run_loop())
-        logger.info(
-            f"Reanalysis scheduler started (interval: {self._interval_minutes} minutes)"
-        )
+        logger.info(f"Reanalysis scheduler started (interval: {self._interval_minutes} minutes)")
 
     async def stop(self) -> None:
         """Stop the scheduler."""
@@ -84,7 +82,7 @@ class ReanalysisScheduler:
             audit_repo = AuditLogRepository(session)
 
             # Get characters needing reanalysis
-            characters = await watchlist_repo.get_needing_reanalysis()
+            characters = await watchlist_repo.list_needing_reanalysis()
 
             if not characters:
                 logger.info("No characters need reanalysis")
@@ -100,14 +98,10 @@ class ReanalysisScheduler:
 
             for entry in to_analyze:
                 try:
-                    logger.info(
-                        f"Reanalyzing {entry.character_name} ({entry.character_id})"
-                    )
+                    logger.info(f"Reanalyzing {entry.character_name} ({entry.character_id})")
 
                     # Run analysis
-                    applicant = await self._esi_client.build_applicant(
-                        entry.character_id
-                    )
+                    applicant = await self._esi_client.build_applicant(entry.character_id)
                     applicant = await self._zkill_client.enrich_applicant(applicant)
                     report = await self._risk_scorer.analyze(applicant)
 
@@ -127,16 +121,12 @@ class ReanalysisScheduler:
                         and entry.last_risk_level
                         and entry.last_risk_level != report.overall_risk.value
                     ):
-                        await self._handle_risk_change(
-                            entry, report.overall_risk.value
-                        )
+                        await self._handle_risk_change(entry, report.overall_risk.value)
 
                     success_count += 1
 
                 except Exception as e:
-                    logger.error(
-                        f"Failed to reanalyze {entry.character_name}: {e}"
-                    )
+                    logger.error(f"Failed to reanalyze {entry.character_name}: {e}")
                     fail_count += 1
 
             # Log the batch run
@@ -153,13 +143,9 @@ class ReanalysisScheduler:
                 },
             )
 
-            logger.info(
-                f"Reanalysis cycle complete: {success_count} success, {fail_count} failed"
-            )
+            logger.info(f"Reanalysis cycle complete: {success_count} success, {fail_count} failed")
 
-    async def _handle_risk_change(
-        self, entry, new_risk_level: str
-    ) -> None:
+    async def _handle_risk_change(self, entry, new_risk_level: str) -> None:
         """Handle a risk level change (send notifications)."""
         logger.info(
             f"Risk level changed for {entry.character_name}: "
@@ -183,9 +169,7 @@ class ReanalysisScheduler:
 
             async with get_session() as session:
                 report_repo = ReportRepository(session)
-                report = await report_repo.get_latest_by_character_id(
-                    entry.character_id
-                )
+                report = await report_repo.get_latest_by_character_id(entry.character_id)
 
                 if not report:
                     return
@@ -245,7 +229,7 @@ class ReanalysisScheduler:
                         characters.append(entry)
             else:
                 # Get all needing reanalysis
-                characters = await watchlist_repo.get_needing_reanalysis()
+                characters = await watchlist_repo.list_needing_reanalysis()
 
             if not characters:
                 return {"analyzed": 0, "success": 0, "failed": 0}
@@ -255,9 +239,7 @@ class ReanalysisScheduler:
 
             for entry in characters:
                 try:
-                    applicant = await self._esi_client.build_applicant(
-                        entry.character_id
-                    )
+                    applicant = await self._esi_client.build_applicant(entry.character_id)
                     applicant = await self._zkill_client.enrich_applicant(applicant)
                     report = await self._risk_scorer.analyze(applicant)
 

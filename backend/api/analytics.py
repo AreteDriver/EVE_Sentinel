@@ -239,7 +239,7 @@ async def get_recruiter_activity(
     stmt = (
         select(
             AuditLogRecord.user_name,
-            func.count(AuditLogRecord.id).label("count"),
+            func.count(AuditLogRecord.id).label("total_count"),
             func.max(AuditLogRecord.created_at).label("last_active"),
         )
         .where(
@@ -258,7 +258,7 @@ async def get_recruiter_activity(
     return [
         RecruiterActivity(
             recruiter=row.user_name or "Unknown",
-            total_analyses=row.count,
+            total_analyses=row.total_count,
             last_active=row.last_active.isoformat() if row.last_active else None,
         )
         for row in rows

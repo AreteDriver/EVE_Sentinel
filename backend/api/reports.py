@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.database import AnnotationRepository, ReportRepository, get_session_dependency
 from backend.database.repository import Annotation
+from backend.models.applicant import CorpHistoryEntry
 from backend.models.report import AnalysisReport, OverallRisk, ReportSummary
 from backend.rate_limit import LIMITS, limiter
 from backend.services import PDFGenerator
@@ -539,14 +540,14 @@ def _extract_metrics(report: AnalysisReport) -> CharacterMetrics | None:
     if app.corp_history:
         six_months_ago = datetime.now(UTC) - timedelta(days=180)
         for entry in app.corp_history:
-            if entry.joined_at and entry.joined_at > six_months_ago:
+            if entry.start_date and entry.start_date > six_months_ago:
                 recent_corp_changes += 1
 
         # Calculate average tenure
         tenures = []
         for entry in app.corp_history:
-            if entry.tenure_days is not None:
-                tenures.append(entry.tenure_days)
+            if entry.duration_days is not None:
+                tenures.append(entry.duration_days)
         if tenures:
             avg_tenure = sum(tenures) / len(tenures)
 
@@ -574,19 +575,19 @@ def _compare_corp_history(
     report1: AnalysisReport, report2: AnalysisReport
 ) -> tuple[list[CorpHistoryDiff], list[CorpHistoryDiff], list[CorpHistoryDiff]]:
     """Compare corporation histories between two reports."""
-    shared = []
-    unique_1 = []
-    unique_2 = []
+    shared: list[CorpHistoryDiff] = []
+    unique_1: list[CorpHistoryDiff] = []
+    unique_2: list[CorpHistoryDiff] = []
 
     if not report1.applicant_data or not report2.applicant_data:
         return shared, unique_1, unique_2
 
     # Build corp sets
-    corps1 = {
-        entry.corp_id: entry for entry in report1.applicant_data.corp_history
+    corps1: dict[int, CorpHistoryEntry] = {
+        entry.corporation_id: entry for entry in report1.applicant_data.corp_history
     }
-    corps2 = {
-        entry.corp_id: entry for entry in report2.applicant_data.corp_history
+    corps2: dict[int, CorpHistoryEntry] = {
+        entry.corporation_id: entry for entry in report2.applicant_data.corp_history
     }
 
     all_corp_ids = set(corps1.keys()) | set(corps2.keys())
@@ -598,15 +599,23 @@ def _compare_corp_history(
         in_1 = entry1 is not None
         in_2 = entry2 is not None
 
-        corp_name = entry1.corp_name if entry1 else (entry2.corp_name if entry2 else "Unknown")
+        corp_name = (
+            entry1.corporation_name
+            if entry1
+            else (entry2.corporation_name if entry2 else "Unknown")
+        )
 
         diff = CorpHistoryDiff(
             corp_id=corp_id,
             corp_name=corp_name,
             in_char_1=in_1,
             in_char_2=in_2,
-            char_1_joined=entry1.joined_at.strftime("%Y-%m-%d") if entry1 and entry1.joined_at else None,
-            char_2_joined=entry2.joined_at.strftime("%Y-%m-%d") if entry2 and entry2.joined_at else None,
+            char_1_joined=entry1.start_date.strftime("%Y-%m-%d")
+            if entry1 and entry1.start_date
+            else None,
+            char_2_joined=entry2.start_date.strftime("%Y-%m-%d")
+            if entry2 and entry2.start_date
+            else None,
         )
 
         if in_1 and in_2:

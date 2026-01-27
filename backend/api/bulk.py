@@ -265,18 +265,20 @@ async def bulk_export_csv(
     writer.writeheader()
 
     for report in reports:
-        writer.writerow({
-            "report_id": str(report.report_id),
-            "character_id": report.character_id,
-            "character_name": report.character_name,
-            "overall_risk": report.overall_risk.value,
-            "confidence": round(report.confidence * 100, 1),
-            "red_flags": report.red_flag_count,
-            "yellow_flags": report.yellow_flag_count,
-            "green_flags": report.green_flag_count,
-            "created_at": report.created_at.isoformat(),
-            "requested_by": report.requested_by or "",
-        })
+        writer.writerow(
+            {
+                "report_id": str(report.report_id),
+                "character_id": report.character_id,
+                "character_name": report.character_name,
+                "overall_risk": report.overall_risk.value,
+                "confidence": round(report.confidence * 100, 1),
+                "red_flags": report.red_flag_count,
+                "yellow_flags": report.yellow_flag_count,
+                "green_flags": report.green_flag_count,
+                "created_at": report.created_at.isoformat(),
+                "requested_by": report.requested_by or "",
+            }
+        )
 
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     filename = f"sentinel_bulk_export_{timestamp}.csv"

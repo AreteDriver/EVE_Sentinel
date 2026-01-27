@@ -110,9 +110,7 @@ class AnnotationRecord(Base):
     updated_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Relationship back to report
-    report: Mapped["ReportRecord"] = relationship(
-        "ReportRecord", back_populates="annotations"
-    )
+    report: Mapped["ReportRecord"] = relationship("ReportRecord", back_populates="annotations")
 
 
 class ShareRecord(Base):
@@ -173,7 +171,9 @@ class WatchlistRecord(Base):
     # Watchlist metadata
     added_by: Mapped[str] = mapped_column(String(255), nullable=False)
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
-    priority: Mapped[str] = mapped_column(String(20), nullable=False, default="normal")  # high, normal, low
+    priority: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="normal"
+    )  # high, normal, low
 
     # Last known state
     last_risk_level: Mapped[str | None] = mapped_column(String(20), nullable=True)
@@ -181,7 +181,9 @@ class WatchlistRecord(Base):
     last_analysis_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Alert settings
-    alert_on_change: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)  # SQLite bool
+    alert_on_change: Mapped[bool] = mapped_column(
+        Integer, nullable=False, default=True
+    )  # SQLite bool
     alert_threshold: Mapped[str] = mapped_column(
         String(20), nullable=False, default="any"
     )  # any, yellow, red
@@ -349,6 +351,4 @@ class ReportTagRecord(Base):
     )
 
     # Unique constraint: one tag per report
-    __table_args__ = (
-        Index("idx_report_tag", "report_id", "tag", unique=True),
-    )
+    __table_args__ = (Index("idx_report_tag", "report_id", "tag", unique=True),)

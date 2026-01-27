@@ -49,7 +49,7 @@ class TestAuthenticatedESIClient:
         # Check for known supercapital type IDs
         assert 23919 in supers  # Aeon
         assert 11567 in supers  # Avatar
-        assert 671 in supers    # Erebus
+        assert 671 in supers  # Erebus
 
 
 class TestAuthenticatedESIClientHTTP:
@@ -121,7 +121,7 @@ class TestAuthenticatedESIClientHTTP:
     async def test_get_assets_pagination(self, client_with_mock, mock_http_client):
         """Test that assets fetches multiple pages."""
         page1 = [{"type_id": 1} for _ in range(1000)]  # Full page
-        page2 = [{"type_id": 2} for _ in range(500)]   # Partial page
+        page2 = [{"type_id": 2} for _ in range(500)]  # Partial page
 
         mock_response1 = MagicMock()
         mock_response1.json.return_value = page1

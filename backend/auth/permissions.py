@@ -129,6 +129,7 @@ def require_role(role: Role) -> Callable:
         async def endpoint(user: User = Depends(require_role(Role.ADMIN))):
             ...
     """
+
     async def dependency(
         request: Request,
         session: AsyncSession = Depends(get_session_dependency),

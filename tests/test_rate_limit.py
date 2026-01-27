@@ -1,6 +1,5 @@
 """Tests for rate limiting functionality."""
 
-
 from backend.rate_limit import LIMITS, get_key_func, limiter
 
 
@@ -34,8 +33,9 @@ class TestRateLimitConfig:
             parts = value.split("/")
             assert len(parts) == 2, f"Invalid limit format for {key}: {value}"
             assert parts[0].isdigit(), f"First part should be numeric for {key}: {value}"
-            assert parts[1] in ["second", "minute", "hour", "day"], \
+            assert parts[1] in ["second", "minute", "hour", "day"], (
                 f"Invalid period for {key}: {value}"
+            )
 
 
 class TestRateLimitKeyFunc:

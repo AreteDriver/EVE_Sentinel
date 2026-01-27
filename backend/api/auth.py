@@ -155,7 +155,9 @@ async def callback(request: Request):
             user, created = await user_repo.get_or_create(
                 character_id=character.character_id,
                 character_name=character.character_name,
-                corporation_id=character.corporation_id if hasattr(character, "corporation_id") else None,
+                corporation_id=character.corporation_id
+                if hasattr(character, "corporation_id")
+                else None,
                 alliance_id=character.alliance_id if hasattr(character, "alliance_id") else None,
             )
 
