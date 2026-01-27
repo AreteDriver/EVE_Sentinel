@@ -56,6 +56,7 @@ class SentinelBot(commands.Bot):
 
     async def on_ready(self) -> None:
         """Called when the bot is ready."""
+        assert self.user is not None
         logger.info(f"Logged in as {self.user} (ID: {self.user.id})")
         logger.info(f"Connected to {len(self.guilds)} guilds")
 
@@ -68,7 +69,7 @@ class SentinelBot(commands.Bot):
         )
 
 
-class AnalysisCog(commands.Cog, name="Analysis"):
+class AnalysisCog(commands.Cog, name="Analysis"):  # type: ignore[call-arg]
     """Commands for character analysis."""
 
     def __init__(self, bot: SentinelBot) -> None:
@@ -256,7 +257,7 @@ class AnalysisCog(commands.Cog, name="Analysis"):
         )
 
 
-class WatchlistCog(commands.Cog, name="Watchlist"):
+class WatchlistCog(commands.Cog, name="Watchlist"):  # type: ignore[call-arg]
     """Commands for watchlist management."""
 
     def __init__(self, bot: SentinelBot) -> None:
@@ -434,7 +435,7 @@ class WatchlistCog(commands.Cog, name="Watchlist"):
             await interaction.followup.send(f"Failed to get watchlist: {str(e)}")
 
 
-class ReportsCog(commands.Cog, name="Reports"):
+class ReportsCog(commands.Cog, name="Reports"):  # type: ignore[call-arg]
     """Commands for viewing reports."""
 
     def __init__(self, bot: SentinelBot) -> None:
@@ -507,7 +508,7 @@ class ReportsCog(commands.Cog, name="Reports"):
             if total > 0:
                 embed.add_field(
                     name="Risk Distribution",
-                    value=f"Red: {red/total:.1%} | Yellow: {yellow/total:.1%} | Green: {green/total:.1%}",
+                    value=f"Red: {red / total:.1%} | Yellow: {yellow / total:.1%} | Green: {green / total:.1%}",
                     inline=False,
                 )
 
