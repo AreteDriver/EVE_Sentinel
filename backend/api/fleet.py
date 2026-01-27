@@ -82,10 +82,7 @@ async def analyze_corporation(
     # Resolve corporation
     corp_id = corp_request.corporation_id
     if not corp_id and corp_request.corporation_name:
-        # Search for corporation by name
-        # search_character resolves names to IDs; for corps we need a different approach
-        # For now, corporation lookup by name is not supported via ESI search
-        corp_id = None  # TODO: implement corporation name search
+        corp_id = await esi_client.search_corporation(corp_request.corporation_name)
 
     if not corp_id:
         raise HTTPException(

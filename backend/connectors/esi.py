@@ -135,6 +135,18 @@ class ESIClient:
                 return int(chars[0])
         return None
 
+    async def search_corporation(self, name: str) -> int | None:
+        """Search for a corporation by name and return its ID."""
+        data = await self._get(
+            f"/search/?categories=corporation&search={name}&strict=true",
+            cache_namespace="search",
+        )
+        if isinstance(data, dict) and "corporation" in data:
+            corps = data["corporation"]
+            if corps:
+                return int(corps[0])
+        return None
+
     async def build_applicant(self, character_id: int) -> Applicant:
         """
         Build an Applicant model from ESI data.
