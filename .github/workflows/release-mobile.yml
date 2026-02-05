@@ -54,7 +54,7 @@ jobs:
         continue-on-error: true
 
       - name: Upload iOS artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: eve-sentinel-iOS
           path: |
@@ -106,7 +106,7 @@ jobs:
         working-directory: src-tauri
 
       - name: Upload Android artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: eve-sentinel-Android
           path: |
