@@ -1,7 +1,7 @@
 """Analysis report models."""
 
 from datetime import UTC, datetime
-from enum import Enum
+from enum import StrEnum
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -10,7 +10,7 @@ from .applicant import Applicant, Playstyle, SuspectedAlt
 from .flags import FlagSeverity, RiskFlag
 
 
-class OverallRisk(str, Enum):
+class OverallRisk(StrEnum):
     """Overall risk assessment."""
 
     RED = "RED"  # High risk - recommend reject
@@ -19,7 +19,7 @@ class OverallRisk(str, Enum):
     UNKNOWN = "UNKNOWN"  # Insufficient data
 
 
-class ReportStatus(str, Enum):
+class ReportStatus(StrEnum):
     """Report processing status."""
 
     PENDING = "pending"

@@ -1,7 +1,7 @@
 """Role-based access control and permissions."""
 
 from collections.abc import Callable
-from enum import Enum
+from enum import StrEnum
 
 from fastapi import Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from backend.database import User, UserRepository, get_session_dependency
 
 
-class Role(str, Enum):
+class Role(StrEnum):
     """User roles with increasing privilege levels."""
 
     VIEWER = "viewer"  # Can view reports

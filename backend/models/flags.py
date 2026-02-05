@@ -1,12 +1,12 @@
 """Risk flag definitions for recruitment analysis."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 from pydantic import BaseModel
 
 
-class FlagSeverity(str, Enum):
+class FlagSeverity(StrEnum):
     """Risk flag severity levels."""
 
     RED = "RED"  # High risk - likely reject
@@ -14,7 +14,7 @@ class FlagSeverity(str, Enum):
     GREEN = "GREEN"  # Positive indicator
 
 
-class FlagCategory(str, Enum):
+class FlagCategory(StrEnum):
     """Categories of risk flags."""
 
     CORP_HISTORY = "corp_history"
